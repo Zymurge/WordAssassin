@@ -1,0 +1,322 @@
+package persistence
+
+import (
+	"bytes"
+	"log"
+	"os"
+	"testing"
+	"time"
+
+	events "WordAssassin/types/events"
+
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	mgo "gopkg.in/mgo.v2"
+)
+
+const (
+	testMongoURL   string = "localhost:27017"
+	testDbName     string = "testDB"
+	testCollection string = "testCollection"
+)
+
+type MongoSessionSuite struct {
+	suite.Suite
+	session *mgo.Session
+	logger  *log.Logger
+}
+
+// Runner for the test suite. Ensures that mongo can be reached at the default location or aborts the suite. The suite provides a
+// pre-connected session for its tests to use for setting the DB state via the SetupTest() call.
+func TestMongoSessionSuite(t *testing.T) {
+	// precondition is that Mongo must be connectable at the default URL for the suite to run
+	session, err := mgo.Dial(testMongoURL)
+	if session != nil {
+		defer session.Close()
+	}
+	require.NoErrorf(t, err, "Mongo must be available at %s for this suite to function", testMongoURL)
+	suite.Run(t, new(MongoSessionSuite))
+}
+
+func (m *MongoSessionSuite) SetupSuite() {
+	m.session = GetMongoClearedCollection(m.T(), testCollection)
+	m.logger = log.New(os.Stderr, "persistence_test: ", log.Ldate|log.Ltime)
+}
+
+func (m *MongoSessionSuite) SetupTest() {
+	err := ClearMongoCollection(m.T(), m.session, testCollection)
+	m.NoError(err, "Test failed in setup clearing collection. Err: %s", err)
+}
+
+func (m *MongoSessionSuite) TestCtorDefaults() {
+	result := NewMongoSession("testURL", "", m.logger)
+	m.EqualValues(DefaultDbName, result.dbName, "DB name should be the default")
+	m.EqualValues(DefaultTimeout, result.timeoutSeconds, "Timeout value should default when not specified")
+}
+
+func (m *MongoSessionSuite) TestConnectToMongo() {
+	ms := MongoSession{
+		mongoURL:       testMongoURL,
+		timeoutSeconds: 3 * time.Second,
+	}
+	err := ms.ConnectToMongo()
+	m.NoError(err, "Sucessful connect throws no error. Instead we got %s", err)
+	m.IsType(MongoSession{}, ms, "Wrong type on connect: %T", ms)
+}
+
+func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
+	ms := MongoSession{
+		mongoURL:       "i.am.abad.url:12345",
+		timeoutSeconds: 100 * time.Millisecond,
+	}
+	err := ms.ConnectToMongo()
+	m.Error(err, "Should return an error when the mongo server can't be found")
+	m.Containsf(err.Error(), "no reachable", "Looking for err message saying it can't find the server. Instead got %s", err)
+}
+
+func (m *MongoSessionSuite) TestWriteCollection() {
+	var err error
+	testEvent := &events.PlayerAddedEvent{
+		ID: 		"13",
+		Name: 		"Fred",
+		SlackID:	"@fred.f",
+		Email:		"fred@bedrock.org",
+	}
+	m.T().Run("Positive", func(t *testing.T) {
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+		err = testMS.WriteCollection(testCollection, testEvent)
+		require.NoError(t, err, "Successful write throws no error. Instead we got %s", err)
+	})
+	m.T().Run("DuplicateInsertShouldError", func(t *testing.T) {
+		dupTestEvent := testEvent
+		dupTestEvent.ID = "14"
+		err = AddToMongoCollection(t, m.session, testCollection, dupTestEvent)
+		require.NoError(t, err, "Test failed in setup adding to collection. Err: %s", err)
+
+		// write the same event again
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+		err = testMS.WriteCollection(testCollection, testEvent)
+		require.Error(t, err, "Attempt to insert duplicate event should throw")
+		require.Contains(t, err.Error(), "duplicate", "Expect error text to mention this")
+	})
+	m.T().Run("CollectionNotExistShouldStillWrite", func(t *testing.T) {
+		testBadCollection := "garbage"
+		ClearMongoCollection(t, m.session, testBadCollection)
+
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+		err = testMS.WriteCollection(testBadCollection, testEvent)
+		require.NoErrorf(t, err, "Writes should create collection on the fly. Got err: %s", err)
+		writeCount, _ := m.session.DB(testDbName).C(testBadCollection).Count()
+		require.True(t, writeCount == 1, "Record should have been written as only entry")
+	})
+	m.T().Run("Dropped connection", func(t *testing.T) {
+		testMS, logBuf := GetMongoSessionWithLogger()
+		testMS.mongoURL = "yo"
+
+		err = testMS.WriteCollection(testCollection, testEvent)
+		require.Error(t, err, "Should get an error if changed to unreachable URL")
+		require.Contains(t, err.Error(), "no reachable servers", "Return value should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "no reachable servers", "Log message should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "WriteCollection", "Log message should inform on source of issue")
+	})
+}
+
+func (m *MongoSessionSuite) TestDeleteFromCollection() {
+	var err error
+	testEvent := events.GameCreatedEvent{
+		ID: 			"-13",
+		TimeCreated:	time.Now(),
+		GameCreator:	"@wilma.f",
+		KillDictionary:	"kd.txt",
+	}
+	m.T().Run("Positive", func(t *testing.T) {
+		err = AddToMongoCollection(t, m.session, testCollection, testEvent)
+		require.NoError(t, err, "Test failed in setup adding to collection. Err: %s", err)
+
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+		err = testMS.DeleteFromCollection(testCollection, testEvent.GetID())
+		require.NoError(t, err, "Successful deletions throw no errors. But this threw: %s", err)
+	})
+	m.T().Run("Missing ID", func(t *testing.T) {
+		testID := "I don't exist"
+
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+		err = testMS.DeleteFromCollection(testCollection, testID)
+		require.Error(t, err, "Delete on missing ID should throw error")
+		require.Containsf(t, err.Error(), "not found", "mgo should specify why it threw on missing ID")
+	})
+	m.T().Run("CollectionNotExist", func(t *testing.T) {
+		testBadCollection := "garbage"
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+		err = testMS.DeleteFromCollection(testBadCollection, "it matters not")
+		require.Error(t, err, "Should get error message when attempt to access non-existent collection")
+		require.Contains(t, err.Error(), "not found", "Looking for the not found phrase, but got: %s", err)
+	})
+	m.T().Run("Dropped connection", func(t *testing.T) {
+		testMS, logBuf := GetMongoSessionWithLogger()
+		testMS.mongoURL = "yo"
+		err = testMS.DeleteFromCollection(testCollection, "it matters not")
+		require.Error(t, err, "Should get an error if changed to unreachable URL")
+		require.Contains(t, err.Error(), "no reachable servers", "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "no reachable servers", "Log message should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "DeleteFromCollection", "Log message should inform on source of issue")
+	})
+}
+
+func (m *MongoSessionSuite) TestUpdateCollection() {
+	var err error
+	testEvent := &events.GameCreatedEvent{
+		ID: 			"-13",
+		TimeCreated:	time.Now(),
+		GameCreator:	"@wilma.f",
+		KillDictionary:	"kd.txt",
+	}
+	// Shared setup
+	err = AddToMongoCollection(m.T(), m.session, testCollection, testEvent)
+	require.NoError(m.T(), err, "Test failed in setup adding to collection. Err: %s", err)
+
+	m.T().Run("Positive", func(t *testing.T) {
+		updateEvent := testEvent
+		expected := "@pebbles"
+		updateEvent.GameCreator = expected
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+
+		err = testMS.UpdateCollection(testCollection, updateEvent)
+		require.NoError(t, err, "Successful update throws no error. Instead we got %s", err)
+		actual := &events.GameCreatedEvent{}
+		if err:= testMS.FetchFromCollection(testCollection, updateEvent.GetID(), actual); err !=nil {
+			require.NoError(t, err, "Failed to fetch result: %s", err.Error())
+		}
+		require.Equal(t, expected, actual.GameCreator)
+	})
+	m.T().Run("MissingID", func(t *testing.T) {
+		badIDEvent := testEvent
+		badIDEvent.ID = "I b missing"
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+
+		err = testMS.UpdateCollection(testCollection, badIDEvent)
+		require.Error(t, err, "Missing ID should error on update")
+		require.Contains(t, err.Error(), "not found", "Looking for message about ID missing, but got: %s", err)
+	})
+	m.T().Run("CollectionNotExist", func(t *testing.T) {
+		testBadCollection := "garbage"
+		collections, _ := m.session.DB(testDbName).CollectionNames()
+		for _,v := range collections {
+			if v == testBadCollection {
+				err := m.session.DB(testDbName).C(testBadCollection).DropCollection()
+				require.NoError(t, err, "Test failed in setup dropping test collection. Err: %s", err)
+			}
+		}
+		testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+
+		err = testMS.UpdateCollection(testBadCollection, testEvent)
+		require.Error(t, err, "Should get error message when attempt to access non-existent collection")
+		require.Contains(t, err.Error(), "Non-existent collection for update", "Looking for missing collection, but got: %s", err)
+	})
+	m.T().Run("Dropped connection", func(t *testing.T) {
+		testMS, logBuf := GetMongoSessionWithLogger()
+		testMS.mongoURL = "yo"
+
+		err = testMS.UpdateCollection(testCollection, testEvent)
+		require.Error(t, err, "Should get an error if changed to unreachable URL")
+		require.Contains(t, err.Error(), "no reachable servers", "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "no reachable servers", "Log message should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "UpdateCollection", "Log message should inform on source of issue")
+	})
+}
+
+func (m *MongoSessionSuite) TestFetchFromCollection() {
+	var err error
+	testEvent := events.PlayerAddedEvent{
+		ID: 		"31",
+		Name: 		"Barney",
+		SlackID:	"@BRubble",
+		Email:		"b.rubble@bedrock.org",
+		TimeCreated: time.Now(),
+	}
+	// Shared setup
+	err = AddToMongoCollection(m.T(), m.session, testCollection, testEvent)
+	require.NoError(m.T(), err, "Test failed in setup adding to collection. Err: %s", err)
+	testMS := NewMongoSession(testMongoURL, testDbName, m.logger, 3)
+
+	m.T().Run("Positive", func(t *testing.T) {
+		result := &events.PlayerAddedEvent{}
+		err = testMS.FetchFromCollection(testCollection, testEvent.GetID(), result)
+		require.NoError(t, err, "Successful lookup throws no error. Instead we got %s", err)
+		require.NotNil(t, result, "Successful lookup has to actually return something")
+		require.Equal(t, testEvent.GetID(), result.GetID())
+		require.Equal(t, testEvent.SlackID, result.SlackID)
+		require.Equal(t, testEvent.Name, result.Name)
+	})
+	m.T().Run("Missing ID", func(t *testing.T) {
+		var result events.GameEvent
+		badID := "I an I bad, mon"
+		err = testMS.FetchFromCollection(testCollection, badID, result)
+		require.Error(t, err, "Missing id should throw an error")
+		require.Contains(t, err.Error(), "not found", "Message should give a clue. Instead it is %s", err)
+	})
+	m.T().Run("Dropped connection", func(t *testing.T) {
+		var result events.GameEvent
+		testMS, logBuf := GetMongoSessionWithLogger()
+		testMS.mongoURL = "yo"
+		err = testMS.FetchFromCollection(testCollection, testEvent.GetID(), result)
+		require.Error(t, err, "Should get an error if changed to unreachable URL")
+		require.Contains(t, err.Error(), "no reachable servers", "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "no reachable servers", "Log message should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "FetchFromCollection", "Log message should inform on source of issue")
+	})
+}
+
+/*** Helper functions ***/
+
+// MongoClearCollection drops the specified collection. Depends on constants for testMongoURL and DbName.
+// Hardcodes 2 second timeout on connect, since it expects local mongo to work
+func MongoClearCollection(collName string) error {
+	to := 2 * time.Second
+	session, err := mgo.DialWithTimeout(testMongoURL, to)
+	defer session.Close()
+	if err != nil {
+		return err
+	}
+	myCollection := session.DB(testDbName).C(collName)
+	_, err = myCollection.RemoveAll(nil)
+	return err
+}
+
+// GetMongoClearedCollection clears the specified collection and returns an active session pointing to it
+func GetMongoClearedCollection(t *testing.T, collName string) (session *mgo.Session) {
+	var err error
+	session, err = mgo.Dial(testMongoURL)
+	if err != nil {
+		t.Errorf("GetMongoClearedCollection failed to connect to Mongo")
+	}
+	myCollection := session.DB(testDbName).C(collName)
+	_, err = myCollection.RemoveAll(nil)
+	if err != nil {
+		t.Errorf("GetMongoClearedCollection failed to clear collection %s: %s", collName, err)
+	}
+	return session
+}
+
+func ClearMongoCollection(t *testing.T, session *mgo.Session, collName string) error {
+	var err error
+	clearMe := session.DB(testDbName).C(collName)
+	_, err = clearMe.RemoveAll(nil)
+	if err != nil {
+		t.Errorf("ClearMongoCollection failed to clear collection %s: %s", collName, err)
+	}
+	return err
+}
+
+func AddToMongoCollection(t *testing.T, session *mgo.Session, collName string, obj interface{}) error {
+	myCollection := session.DB(testDbName).C(collName)
+	return myCollection.Insert(obj)
+}
+
+func GetMongoSessionWithLogger() (ms *MongoSession, logBuf *bytes.Buffer) {
+	logBuf = &bytes.Buffer{}
+	logLabel := "persistence_test: "
+	blog := log.New(logBuf, logLabel, 0)
+	ms = NewMongoSession(testMongoURL, testDbName, blog, 3)
+	return
+}
