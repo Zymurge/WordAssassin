@@ -7,19 +7,22 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
-
 	mgo "gopkg.in/mgo.v2"
-	//"gopkg.in/mgo.v2/bson"
-
-	events "wordassassin/types/events"
 )
+
+// Persistable encapsulates the common features of any object that can be generically stored through this layer
+type Persistable interface {
+	GetID() string
+	Decode(bson.M) error
+}
+
 
 // MongoAbstraction defines the set of DAL functions for accessing this Mongo collection
 type MongoAbstraction interface {
 	ConnectToMongo() error
-	WriteCollection(collectionName string, object events.GameEvent) error
-	UpdateCollection(collectionName string, object events.GameEvent) error
-	FetchFromCollection(collectionName string, id string, object events.GameEvent) error
+	WriteCollection(collectionName string, object Persistable) error
+	UpdateCollection(collectionName string, object Persistable) error
+	FetchFromCollection(collectionName string, id string, object Persistable) error
 	DeleteFromCollection(collectionName string, id string) error
 }
 
@@ -79,8 +82,8 @@ func (ms *MongoSession) CheckAndReconnect() (err error) {
 	return
 }
 
-// WriteCollection writes the specified GameEvent object to a given collection
-func (ms *MongoSession) WriteCollection(coll string, obj events.GameEvent) error {
+// WriteCollection writes the specified Persistable object to a given collection
+func (ms *MongoSession) WriteCollection(coll string, obj Persistable) error {
 	if err := ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("WriteCollection: could not establish mongo connection: %s", err)
 		return err
@@ -89,8 +92,8 @@ func (ms *MongoSession) WriteCollection(coll string, obj events.GameEvent) error
 	return myCollection.Insert(obj)
 }
 
-// UpdateCollection updates the GameEvent object in the specified collection with a matching _id element to the passed in object
-func (ms *MongoSession) UpdateCollection(collName string, obj events.GameEvent) error {
+// UpdateCollection updates the Persistable object in the specified collection with a matching _id element to the passed in object
+func (ms *MongoSession) UpdateCollection(collName string, obj Persistable) error {
 	if err := ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("UpdateCollection: could not establish mongo connection: %s", err)
 		return err
@@ -103,8 +106,8 @@ func (ms *MongoSession) UpdateCollection(collName string, obj events.GameEvent) 
 	return myCollection.UpdateId(id, obj)
 }
 
-// FetchFromCollection fetches the GameEvent by ID from the specified collection
-func (ms *MongoSession) FetchFromCollection(coll string, id string, result events.GameEvent) (err error) {
+// FetchFromCollection fetches the Persistable by ID from the specified collection
+func (ms *MongoSession) FetchFromCollection(coll string, id string, result Persistable) (err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("FetchFromCollection: could not establish mongo connection: %s", err)
 		return

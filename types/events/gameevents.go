@@ -11,7 +11,6 @@ type GameEvent interface {
 	GetID() string
 	GetTimeCreated() time.Time
 	Decode(bson.M) error
-	//SetBSON(bson.Raw) error
 }
 
 // GameStartedEvent is created when the game is started

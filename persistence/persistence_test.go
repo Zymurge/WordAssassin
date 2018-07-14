@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	events "wordassassin/types/events"
-
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	mgo "gopkg.in/mgo.v2"
+
+	"WordAssassin/types/events"
 )
 
 const (
