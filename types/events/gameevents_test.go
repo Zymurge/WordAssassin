@@ -53,7 +53,6 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 }
 
 func TestPlayerAddedEvent_Decode(t *testing.T) {
-	t.Run("Positive", func(t *testing.T){
 		original := PlayerAddedEvent{
 			ID:				"testID",
 			TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
@@ -66,6 +65,7 @@ func TestPlayerAddedEvent_Decode(t *testing.T) {
 		asM := bson.M{}
 		err = bson.Unmarshal(asBSON, &asM)
 		require.NoError(t, err, "Failure to unmarshal test object to map: %v", err)
+	t.Run("Positive", func(t *testing.T){
 		actual := &PlayerAddedEvent{}
 		err = actual.Decode(asM)
 		require.NoError(t, err, "Failure to marshal test object to BSON: %v", err)

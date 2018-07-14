@@ -11,7 +11,7 @@ import (
 	mgo "gopkg.in/mgo.v2"
 	//"gopkg.in/mgo.v2/bson"
 
-	events "WordAssassin/types/events"
+	events "wordassassin/types/events"
 )
 
 // MongoAbstraction defines the set of DAL functions for accessing this Mongo collection
@@ -19,7 +19,7 @@ type MongoAbstraction interface {
 	ConnectToMongo() error
 	WriteCollection(collectionName string, object events.GameEvent) error
 	UpdateCollection(collectionName string, object events.GameEvent) error
-	FetchFromCollection(collectionName string, id string) (events.GameEvent, error)
+	FetchFromCollection(collectionName string, id string, object events.GameEvent) error
 	DeleteFromCollection(collectionName string, id string) error
 }
 
