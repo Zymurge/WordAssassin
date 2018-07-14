@@ -2,7 +2,6 @@ package persistence
 
 import (
 	"fmt"
-	"wordassassin/types/events"
 
 	mgo "gopkg.in/mgo.v2"
 )
@@ -13,7 +12,7 @@ type MockMongoSession struct {
 	ConnectMode string
 	QueryMode   string
 	WriteMode   string
-	FetchResult events.GameEvent
+	FetchResult Persistable
 }
 
 // ConnectToMongo mock. Controlled by mm.ConnectMode values 'positive' and 'no connect'
@@ -28,7 +27,7 @@ func (mm *MockMongoSession) ConnectToMongo() error {
 }
 
 // WriteCollection mock. Controlled by mm.WriteMode values 'positive', 'fail' and 'duplicate'
-func (mm *MockMongoSession) WriteCollection(collectionName string, object events.GameEvent) error {
+func (mm *MockMongoSession) WriteCollection(collectionName string, object Persistable) error {
 	if err := mm.ConnectToMongo(); err != nil {
 		return err
 	}
@@ -48,7 +47,7 @@ func (mm *MockMongoSession) WriteCollection(collectionName string, object events
 }
 
 // UpdateCollection mock. Controlled by mm.WriteMode values 'positive', 'fail' and 'missing'
-func (mm *MockMongoSession) UpdateCollection(collectionName string, object events.GameEvent) error {
+func (mm *MockMongoSession) UpdateCollection(collectionName string, object Persistable) error {
 	if err := mm.ConnectToMongo(); err != nil {
 		return err
 	}
@@ -68,7 +67,7 @@ func (mm *MockMongoSession) UpdateCollection(collectionName string, object event
 }
 
 // FetchFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
-func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string, result events.GameEvent) error {
+func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string, result Persistable) error {
 	if err := mm.ConnectToMongo(); err != nil {
 		return err
 	}

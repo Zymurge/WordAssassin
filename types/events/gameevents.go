@@ -1,16 +1,14 @@
 package events
 
 import (
+	"wordassassin/persistence"
 	"time"
-
-	"gopkg.in/mgo.v2/bson"
 )
 
 // GameEvent encapsulates the common features of any event generated in the game
 type GameEvent interface {
-	GetID() string
+	persistence.Persistable
 	GetTimeCreated() time.Time
-	Decode(bson.M) error
 }
 
 // GameStartedEvent is created when the game is started

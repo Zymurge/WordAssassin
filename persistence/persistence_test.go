@@ -6,12 +6,12 @@ import (
 	"os"
 	"testing"
 	"time"
+	"fmt"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	mgo "gopkg.in/mgo.v2"
-
-	"WordAssassin/types/events"
+	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -76,11 +76,9 @@ func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
 
 func (m *MongoSessionSuite) TestWriteCollection() {
 	var err error
-	testEvent := &events.PlayerAddedEvent{
+	testEvent := &testGenericPersistable{
 		ID: 		"13",
 		Name: 		"Fred",
-		SlackID:	"@fred.f",
-		Email:		"fred@bedrock.org",
 	}
 	m.T().Run("Positive", func(t *testing.T) {
 		testMS := NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
@@ -123,11 +121,10 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 
 func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	var err error
-	testEvent := events.GameCreatedEvent{
+	testEvent := testGenericPersistable{
 		ID: 			"-13",
-		TimeCreated:	time.Now(),
-		GameCreator:	"@wilma.f",
-		KillDictionary:	"kd.txt",
+		TimeCreated:	time.Unix(63667134976, 53).UTC(),
+		Name:			"@wilma.f",
 	}
 	m.T().Run("Positive", func(t *testing.T) {
 		err = AddToMongoCollection(t, m.session, TestCollection, testEvent)
@@ -165,11 +162,10 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 
 func (m *MongoSessionSuite) TestUpdateCollection() {
 	var err error
-	testEvent := &events.GameCreatedEvent{
+	testEvent := &testGenericPersistable{
 		ID: 			"-13",
-		TimeCreated:	time.Now(),
-		GameCreator:	"@wilma.f",
-		KillDictionary:	"kd.txt",
+		TimeCreated:	time.Unix(63667134985, 13).UTC(),
+		Name:			"@wilma.f",
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)
@@ -177,17 +173,17 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 
 	m.T().Run("Positive", func(t *testing.T) {
 		updateEvent := testEvent
-		expected := "@pebbles"
-		updateEvent.GameCreator = expected
+		expected := "@wilma.f"
+		updateEvent.Name = expected
 		testMS := NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 
 		err = testMS.UpdateCollection(TestCollection, updateEvent)
 		require.NoError(t, err, "Successful update throws no error. Instead we got %s", err)
-		actual := &events.GameCreatedEvent{}
+		actual := &testGenericPersistable{}
 		if err:= testMS.FetchFromCollection(TestCollection, updateEvent.GetID(), actual); err !=nil {
 			require.NoError(t, err, "Failed to fetch result: %s", err.Error())
 		}
-		require.Equal(t, expected, actual.GameCreator)
+		require.Equal(t, expected, actual.Name)
 	})
 	m.T().Run("MissingID", func(t *testing.T) {
 		badIDEvent := testEvent
@@ -227,12 +223,10 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 
 func (m *MongoSessionSuite) TestFetchFromCollection() {
 	var err error
-	testEvent := events.PlayerAddedEvent{
+	testEvent := testGenericPersistable{
 		ID: 		"31",
 		Name: 		"Barney",
-		SlackID:	"@BRubble",
-		Email:		"b.rubble@bedrock.org",
-		TimeCreated: time.Now(),
+		TimeCreated:	time.Unix(63667135112, 21).UTC(),
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)
@@ -240,23 +234,23 @@ func (m *MongoSessionSuite) TestFetchFromCollection() {
 	testMS := NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 
 	m.T().Run("Positive", func(t *testing.T) {
-		result := &events.PlayerAddedEvent{}
+		result := &testGenericPersistable{}
 		err = testMS.FetchFromCollection(TestCollection, testEvent.GetID(), result)
 		require.NoError(t, err, "Successful lookup throws no error. Instead we got %s", err)
 		require.NotNil(t, result, "Successful lookup has to actually return something")
 		require.Equal(t, testEvent.GetID(), result.GetID())
-		require.Equal(t, testEvent.SlackID, result.SlackID)
+		require.Equal(t, testEvent.TimeCreated, result.TimeCreated)
 		require.Equal(t, testEvent.Name, result.Name)
 	})
 	m.T().Run("Missing ID", func(t *testing.T) {
-		var result events.GameEvent
+		var result Persistable
 		badID := "I an I bad, mon"
 		err = testMS.FetchFromCollection(TestCollection, badID, result)
 		require.Error(t, err, "Missing id should throw an error")
 		require.Contains(t, err.Error(), "not found", "Message should give a clue. Instead it is %s", err)
 	})
 	m.T().Run("Dropped connection", func(t *testing.T) {
-		var result events.GameEvent
+		var result Persistable
 		testMS, logBuf := GetMongoSessionWithLogger()
 		testMS.mongoURL = "yo"
 		err = testMS.FetchFromCollection(TestCollection, testEvent.GetID(), result)
@@ -320,3 +314,53 @@ func GetMongoSessionWithLogger() (ms *MongoSession, logBuf *bytes.Buffer) {
 	ms = NewMongoSession(TestMongoURL, TestDbName, blog, 3)
 	return
 }
+
+
+//*** Test Assets ***//
+
+// testGenericPersistable is created for each time a player is added to the game
+type testGenericPersistable struct {
+	//GameEvent
+	ID          string    `json:"id" bson:"_id"`
+	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
+	Name        string    `json:"name" bson:"name"`
+}
+
+// GetID returns the unique identifer for this event
+func (e *testGenericPersistable) GetID() string {
+	return e.ID
+}
+
+// GetTimeCreated returns the unique identifer for this event
+func (e *testGenericPersistable) GetTimeCreated() time.Time {
+	return e.TimeCreated
+}
+
+// Decode populates this instance from the supplied bson
+func (e *testGenericPersistable) Decode(b bson.M) error {
+	if val, ok := b["_id"]; ok {
+		if e.ID, ok = val.(string); !ok {
+			return fmt.Errorf("Cast issue for ID")
+		} 
+	} else {
+		return fmt.Errorf("Missing tag: _id")
+	}
+	if val, ok := b["timecreated"]; ok {
+		if e.TimeCreated, ok = val.(time.Time); !ok {
+			return fmt.Errorf("Cast issue for TimeCreated")
+		} 
+		e.TimeCreated = e.TimeCreated.UTC()
+	} else {
+		return fmt.Errorf("Missing tag: timecreated")
+	}
+	if val, ok := b["name"]; ok {
+		if e.Name, ok = val.(string); !ok {
+			return fmt.Errorf("Cast issue for Name")
+		} 
+	} else {
+		return fmt.Errorf("Missing tag: name")
+	}
+
+	return nil
+}
+
