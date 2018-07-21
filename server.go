@@ -1,25 +1,29 @@
 package main
 
 import (
-	"net/http"
 	"log"
+	"net/http"
 	"os"
+
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 
-	types "wordassassin/types"
 	dao "wordassassin/persistence"
+	types "wordassassin/types"
 )
 
 const (
-	mongoURL				string = "localhost:27017"
-	mongoDB    				string = "testDB"
-	mongoPlayerCollection	string = "players"
+	mongoURL              string = "localhost:27017"
+	mongoDB               string = "testDB"
+	mongoPlayerCollection string = "players"
+	serverPortEnvName	  string = "PORT"
+	defaultPort			  string = "8080"
 )
 
 var (
-	logger *log.Logger
-	mongo *dao.MongoSession
+	port	string
+	logger  *log.Logger
+	mongo   *dao.MongoSession
 	players types.PlayerPool
 	handler Handler
 )
@@ -34,11 +38,19 @@ func addPlayer(c echo.Context) error {
 	return c.HTML(200, message)
 }
 
+func healthCheck(c echo.Context) error {
+	return c.HTML(http.StatusOK, "I'm running!")
+}
+
 func main() {
 	logger = log.New(os.Stderr, "WordAssassin: ", log.Ldate|log.Ltime)
-	mongo = dao.NewMongoSession( mongoURL, mongoDB, logger	)
+	if port = os.Getenv(serverPortEnvName); port == "" {
+		port = defaultPort
+	}
+	port = ":" + port
+	mongo = dao.NewMongoSession(mongoURL, mongoDB, logger)
 	// TODO: rethink the gameID mapping per pool, but hardcode one for now
-	players = types.PlayerPool{ GameID: "testGameID" }
+	players = types.PlayerPool{GameID: "testGameID"}
 	handler = NewHandler(&players, mongo)
 
 	//*** Web Server Stuff ***//
@@ -49,8 +61,9 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Routes
+	e.GET("/", healthCheck)
 	e.POST("/addplayer/:tag", addPlayer)
 
 	// Start server
-	e.Logger.Fatal(e.Start(":1313"))
+	e.Logger.Fatal(e.Start(port))
 }
