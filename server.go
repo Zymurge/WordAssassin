@@ -13,19 +13,19 @@ import (
 )
 
 const (
-	mongoURL              string = "localhost:27017"
-	mongoDB               string = "testDB"
-	mongoPlayerCollection string = "players"
-	serverPortEnvName	  string = "PORT"
-	defaultPort			  string = "8080"
+	mongoDB           string = "wordDB"
+	defaultPort       string = "8080"
+	serverPortEnvName string = "PORT"
+	mongoURLEnvName   string = "MONGOURL"
 )
 
 var (
-	port	string
-	logger  *log.Logger
-	mongo   *dao.MongoSession
-	players types.PlayerPool
-	handler Handler
+	port     string
+	mongoURL string
+	logger   *log.Logger
+	mongo    *dao.MongoSession
+	players  types.PlayerPool
+	handler  Handler
 )
 
 func addPlayer(c echo.Context) error {
@@ -44,11 +44,18 @@ func healthCheck(c echo.Context) error {
 
 func main() {
 	logger = log.New(os.Stderr, "WordAssassin: ", log.Ldate|log.Ltime)
+	// Port from env or default
 	if port = os.Getenv(serverPortEnvName); port == "" {
 		port = defaultPort
 	}
 	port = ":" + port
+
+	// MongoURL or bail if not available
+	if mongoURL = os.Getenv(mongoURLEnvName); mongoURL == "" {
+		logger.Fatalf("Can't find Mongo URL env variable: %s", mongoURLEnvName)
+	}
 	mongo = dao.NewMongoSession(mongoURL, mongoDB, logger)
+
 	// TODO: rethink the gameID mapping per pool, but hardcode one for now
 	players = types.PlayerPool{GameID: "testGameID"}
 	handler = NewHandler(&players, mongo)
