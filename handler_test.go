@@ -1,4 +1,4 @@
-package wordassassin
+package main
 
 import (
 	"testing"
@@ -28,8 +28,8 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		email   string
 	}
 
-	testPool := types.PlayerPool{ GameID: "testGameID" }
 	mongo := dao.MockMongoSession{}
+	testPool := types.PlayerPool{ GameID: "testGameID" }
 	testHandler := NewHandler(&testPool, &mongo)
 
 	tests := []struct {
@@ -43,10 +43,10 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		{ "positive", testHandler, false, "",
 			args{ "fred", "@fred","fred@bedrock.org"}, 
 			mockControls{"positive", "positive", nil} },
-		{ "PlayerPool error (from dup)", testHandler, true, "duplicate",
+		{ "PlayerPool error (from dup)", testHandler, true, "out of sync",
 			args{ "fred", "@fred","fred@bedrock.org"}, 
 			mockControls{"positive", "positive", nil} },
-		{ "duplicate ID (at mongo)", testHandler, true, "duplicate",
+		{ "duplicate ID (at mongo)", testHandler, true, "@fred already added",
 			args{ "fred", "@fred","fred@bedrock.org"}, 
 			mockControls{"positive", "duplicate", nil} },
 		{ "missing ID", testHandler, true, "missing",

@@ -28,7 +28,7 @@ The game ends when the 2nd to last person registers their death, leaving the las
             Starting: num
             Alive: num
   
-- ###  AddUser *game-name user-tag*
+- ###  AddPlayer *game-name player-tag*
 
 - ###  StartGame *game-name*
 
