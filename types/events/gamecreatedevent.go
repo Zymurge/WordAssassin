@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	bson "github.com/globalsign/mgo/bson"
 )
 
 // GameCreatedEvent is created once per game instance

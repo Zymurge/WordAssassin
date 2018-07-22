@@ -1,10 +1,10 @@
 package events
 
 import (
-	"gopkg.in/mgo.v2/bson"
 	"testing"
 	"time"
 
+	bson "github.com/globalsign/mgo/bson"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	bson "github.com/globalsign/mgo/bson"
 )
 
 // PlayerAddedEvent is created for each time a player is added to the game
