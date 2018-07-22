@@ -2,16 +2,16 @@ package persistence
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"testing"
 	"time"
-	"fmt"
 
+	mgo "github.com/globalsign/mgo"
+	bson "github.com/globalsign/mgo/bson"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -77,8 +77,8 @@ func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
 func (m *MongoSessionSuite) TestWriteCollection() {
 	var err error
 	testEvent := &testGenericPersistable{
-		ID: 		"13",
-		Name: 		"Fred",
+		ID:   "13",
+		Name: "Fred",
 	}
 	m.T().Run("Positive", func(t *testing.T) {
 		testMS := NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
@@ -122,9 +122,9 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	var err error
 	testEvent := testGenericPersistable{
-		ID: 			"-13",
-		TimeCreated:	time.Unix(63667134976, 53).UTC(),
-		Name:			"@wilma.f",
+		ID:          "-13",
+		TimeCreated: time.Unix(63667134976, 53).UTC(),
+		Name:        "@wilma.f",
 	}
 	m.T().Run("Positive", func(t *testing.T) {
 		err = AddToMongoCollection(t, m.session, TestCollection, testEvent)
@@ -163,9 +163,9 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 func (m *MongoSessionSuite) TestUpdateCollection() {
 	var err error
 	testEvent := &testGenericPersistable{
-		ID: 			"-13",
-		TimeCreated:	time.Unix(63667134985, 13).UTC(),
-		Name:			"@wilma.f",
+		ID:          "-13",
+		TimeCreated: time.Unix(63667134985, 13).UTC(),
+		Name:        "@wilma.f",
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)
@@ -180,7 +180,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		err = testMS.UpdateCollection(TestCollection, updateEvent)
 		require.NoError(t, err, "Successful update throws no error. Instead we got %s", err)
 		actual := &testGenericPersistable{}
-		if err:= testMS.FetchFromCollection(TestCollection, updateEvent.GetID(), actual); err !=nil {
+		if err := testMS.FetchFromCollection(TestCollection, updateEvent.GetID(), actual); err != nil {
 			require.NoError(t, err, "Failed to fetch result: %s", err.Error())
 		}
 		require.Equal(t, expected, actual.Name)
@@ -197,7 +197,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 	m.T().Run("CollectionNotExist", func(t *testing.T) {
 		testBadCollection := "garbage"
 		collections, _ := m.session.DB(TestDbName).CollectionNames()
-		for _,v := range collections {
+		for _, v := range collections {
 			if v == testBadCollection {
 				err := m.session.DB(TestDbName).C(testBadCollection).DropCollection()
 				require.NoError(t, err, "Test failed in setup dropping test collection. Err: %s", err)
@@ -224,9 +224,9 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 func (m *MongoSessionSuite) TestFetchFromCollection() {
 	var err error
 	testEvent := testGenericPersistable{
-		ID: 		"31",
-		Name: 		"Barney",
-		TimeCreated:	time.Unix(63667135112, 21).UTC(),
+		ID:          "31",
+		Name:        "Barney",
+		TimeCreated: time.Unix(63667135112, 21).UTC(),
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)
@@ -315,7 +315,6 @@ func GetMongoSessionWithLogger() (ms *MongoSession, logBuf *bytes.Buffer) {
 	return
 }
 
-
 //*** Test Assets ***//
 
 // testGenericPersistable is created for each time a player is added to the game
@@ -341,14 +340,14 @@ func (e *testGenericPersistable) Decode(b bson.M) error {
 	if val, ok := b["_id"]; ok {
 		if e.ID, ok = val.(string); !ok {
 			return fmt.Errorf("Cast issue for ID")
-		} 
+		}
 	} else {
 		return fmt.Errorf("Missing tag: _id")
 	}
 	if val, ok := b["timecreated"]; ok {
 		if e.TimeCreated, ok = val.(time.Time); !ok {
 			return fmt.Errorf("Cast issue for TimeCreated")
-		} 
+		}
 		e.TimeCreated = e.TimeCreated.UTC()
 	} else {
 		return fmt.Errorf("Missing tag: timecreated")
@@ -356,11 +355,10 @@ func (e *testGenericPersistable) Decode(b bson.M) error {
 	if val, ok := b["name"]; ok {
 		if e.Name, ok = val.(string); !ok {
 			return fmt.Errorf("Cast issue for Name")
-		} 
+		}
 	} else {
 		return fmt.Errorf("Missing tag: name")
 	}
 
 	return nil
 }
-

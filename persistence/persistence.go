@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
-	mgo "gopkg.in/mgo.v2"
+	mgo "github.com/globalsign/mgo"
+	bson "github.com/globalsign/mgo/bson"
 )
 
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
@@ -15,7 +15,6 @@ type Persistable interface {
 	GetID() string
 	Decode(bson.M) error
 }
-
 
 // MongoAbstraction defines the set of DAL functions for accessing this Mongo collection
 type MongoAbstraction interface {
