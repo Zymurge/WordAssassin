@@ -1,6 +1,7 @@
 package main
 
 import (
+	"wordassassin/types/events"
 	"testing"
 	"github.com/stretchr/testify/require"
 	"time"
@@ -44,31 +45,41 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		mock	mockControls
 	}{
 		{ "positive", testHandler, false, "",
-			args{ "game1", "@fred", "fred", "fred@bedrock.org"}, 
+			args{ "game1", "@fred", "fred", "fred@bedrock.org" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "PlayerPool error (from dup)", testHandler, true, "out of sync",
-			args{ "game1", "@fred", "fred","fred@bedrock.org"}, 
+			args{ "game1", "@dupe_player", "dupey", "thesameguy@some.org" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "duplicate slackID (at mongo)", testHandler, true, "@fred already added",
-			args{ "game1", "@fred", "fred","fred@bedrock.org"}, 
+			args{ "game1", "@fred", "fred", "fred@bedrock.org" }, 
 			mockControls{"positive", "duplicate", nil} },
 		{ "empty slackID argument", testHandler, true, "missing SlackID",
-			args{ "game1", "", "whatev","bad@email.org"}, 
+			args{ "game1", "", "whatev", "bad@email.org" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "gameID doesn't exist", testHandler, true, "missing_gameid doesn't exist",
-			args{ "missing_gameid", "@someone", "someone","bad@email.org"}, 
+			args{ "missing_gameid", "@someone", "someone", "bad@email.org" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "empty GameID argument", testHandler, true, "doesn't exist",
-			args{ "", "@someone", "someone","bad@email.org"}, 
+			args{ "", "@someone", "someone","bad@email.org" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "mongo fail", testHandler, true, "connect",
-			args{ "game1", "n/a", "n/a","bad@email.org"}, 
+			args{ "game1", "n/a", "n/a", "bad@email.org" }, 
 			mockControls{"no connect", "positive", nil} },
 	}
 
 	// Add a game named "game1" for cases that expect it
-	game1 := types.Game{ "game1", time.Now(), "testmaster", "websters", "starting"}
+	game1 := types.Game{ 
+		ID: "game1", 
+		TimeCreated: time.Now(), 
+		GameCreator: "testmaster", 
+		KillDictionary: "websters", 
+		Status: "starting",
+	}
 	testGPool.AddGame(&game1)
+	// Add a preexisting player to support duplicate cases
+	dupEv, _ := events.NewPlayerAddedEvent("game1","@dupe_player", "", "")
+	dupPlayer := types.NewPlayerFromEvent(dupEv)
+	testPPool.AddPlayer(&dupPlayer)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -110,31 +121,30 @@ func TestHandler_OnGameCreated(t *testing.T) {
 		mock	mockControls
 	}{
 		{ "positive", testHandler, false, "",
-			args{ "game1", "@fred", "somedict.txt", "topsecret"}, 
+			args{ "game1", "@fred", "somedict.txt", "topsecret" }, 
 			mockControls{"positive", "positive", nil} },
-/*		{ "PlayerPool error (from dup)", testHandler, true, "out of sync",
-			args{ "game1", "@fred", "fred","fred@bedrock.org"}, 
+		{ "GamePool error (from dup)", testHandler, true, "out of sync",
+			args{ "dupe_game", "@testmaster", "somedict.txt", "topsecret" }, 
 			mockControls{"positive", "positive", nil} },
-		{ "duplicate slackID (at mongo)", testHandler, true, "@fred already added",
-			args{ "game1", "@fred", "fred","fred@bedrock.org"}, 
+		{ "duplicate gameID (at mongo)", testHandler, true, "dupe_game already created",
+			args{ "dupe_game", "@testmaster", "somedict.txt", "topsecret" }, 
 			mockControls{"positive", "duplicate", nil} },
-		{ "empty slackID argument", testHandler, true, "missing SlackID",
-			args{ "game1", "", "whatev","bad@email.org"}, 
-			mockControls{"positive", "positive", nil} },
-		{ "gameID doesn't exist", testHandler, true, "missing_gameid doesn't exist",
-			args{ "missing_gameid", "@someone", "someone","bad@email.org"}, 
-			mockControls{"positive", "positive", nil} },
-		{ "empty GameID argument", testHandler, true, "doesn't exist",
-			args{ "", "@someone", "someone","bad@email.org"}, 
+		{ "empty gameID argument", testHandler, true, "missing gameID",
+			args{ "", "@someone", "whatev", "xxx" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "mongo fail", testHandler, true, "connect",
-			args{ "game1", "n/a", "n/a","bad@email.org"}, 
+			args{ "fail", "n/a", "n/a","bad@email.org"}, 
 			mockControls{"no connect", "positive", nil} },
-	*/
 	}
 
-	// Add a game named "game1" for cases that expect it
-	dupGame := types.Game{ "duplicategame", time.Now(), "testmaster", "websters", "starting"}
+	// Add a game for tests that need a pre-existing id
+	dupGame := types.Game{ 
+		ID: "dupe_game", 
+		TimeCreated: time.Now(), 
+		GameCreator: "@testmaster", 
+		KillDictionary: "websters", 
+		Status: "starting",
+	}
 	testGPool.AddGame(&dupGame)
 
 	for _, tt := range tests {
