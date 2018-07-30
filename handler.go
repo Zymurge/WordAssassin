@@ -1,63 +1,86 @@
 package main
 
 import (
-	"strings"
 	"fmt"
-	"time"
+	"strings"
+
 	persistence "wordassassin/persistence"
 	types "wordassassin/types"
 	events "wordassassin/types/events"
 )
 
 // Handler contains the context necessary to process events and put everything where it belongs. Needs to be aware
-// of persistence, the player pool, etc
+// of persistence, the game pool, the player pool, etc
 type Handler struct {
-	pool  *types.PlayerPool
+	gPool  *types.GamePool
+	pPool  *types.PlayerPool
 	mongo persistence.MongoAbstraction
 	// other stuff?
 }
 
 // NewHandler creates a handler instance using the injected dependencies (hint, hint: they're for testing)
-func NewHandler(p *types.PlayerPool, m persistence.MongoAbstraction) Handler {
+func NewHandler(gg *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbstraction) Handler {
 	return Handler{
-		pool:  p,
+		gPool: gg,
+		pPool: pp,
 		mongo: m,
 	}
 }
 
-// OnPlayerAdded handles coordination when a player is added to the game
-func (h Handler) OnPlayerAdded(name string, slackid string, email string) error {
-	// Parse and validate input
-	// Generate and persist a PlayerAddedEvent
-	if slackid == "" {
-		return fmt.Errorf("missing ID field")
+// OnGameCreated handles coordination when a game is created for this server.
+// A unique game ID is created here.
+// Errors:
+// -- creator or killdict is empty
+func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) error {
+	return fmt.Errorf("Handler.OnGameCreated: Not implemented")
+}
+
+// OnPlayerAdded handles coordination when a player is added to the game.
+// A unique player ID is created from the combo of gameid and slackid.
+// Errors:
+// -- gameid or slackid empty
+// -- gameid not exists and in 'starting' state
+// -- duplicate player added
+func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email string) (err error) {
+	// First, make sure there's already a game and it's accepting players
+	game, exists := h.gPool.GetGame(gameid)
+	if !exists {
+		err = fmt.Errorf("The requested GameID: %s doesn't exist on this server", gameid)
+		return
 	}
-	ev := events.PlayerAddedEvent{
-		ID:          slackid, // assume slackid becomes the unique identifier
-		Name:        name,
-		SlackID:     slackid,
-		Email:       email,
-		TimeCreated: time.Now(),
+	if game.Status != "starting" {
+		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
+		return
 	}
-	if err := h.mongo.WriteCollection("events", &ev); err != nil {
+
+	// Create and persist and event, unless it's a dupe. Rely on PlayerAddEvent ctor to validate inputs
+	var ev events.PlayerAddedEvent
+	if ev, err = events.NewPlayerAddedEvent(gameid, slackid, name, email); err != nil {
+		 return
+	}
+	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle a dup write with more graceful wording for downstream consumers
-		if strings.Contains(err.Error(), "duplicate") {
-			return fmt.Errorf("Player %s already added to game %s", slackid, h.pool.GameID)
+		if strings.Contains(mongoerr.Error(), "duplicate") {
+			err = fmt.Errorf("Player %s already added to game %s", slackid, gameid)
+			return
 		}
-		return err
+		err = fmt.Errorf("Mongodb issue on AddPlayer event write: %s", mongoerr.Error())
+		return
 	}
-	// Create the Player instance
+
+	// Create the Player instance and add to the PlayerPool
 	player := types.NewPlayerFromEvent(ev)
-	// Add to the PlayerPool
-	if err := h.pool.AddPlayer(&player); err != nil {
+	if hperr := h.pPool.AddPlayer(&player); hperr != nil {
 		// Should catch all dups at the event level
-		if strings.Contains(err.Error(), "duplicate") {
+		if strings.Contains(hperr.Error(), "duplicate") {
 			// TODO: log this issue
-			return fmt.Errorf("Something bad happened. PlayerPool out of sync with mongo events")
+			err = fmt.Errorf("Something bad happened. PlayerPool out of sync with mongo events")
+			return
 		}
-		return err
+		err = fmt.Errorf("Issue on AddPlayer add to PlayerPool: %s", hperr.Error())
+		return
 	}
-	// Persist the pool, or should it auto persist on state change?
+	// Persist the pPool, or should it auto persist on state change?
 
 	return nil
 }

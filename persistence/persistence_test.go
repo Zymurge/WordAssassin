@@ -226,7 +226,7 @@ func (m *MongoSessionSuite) TestFetchFromCollection() {
 	testEvent := testGenericPersistable{
 		ID:          "31",
 		Name:        "Barney",
-		TimeCreated: time.Unix(63667135112, 21).UTC(),
+		TimeCreated: time.Unix(63667135112, 0).UTC(),
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)

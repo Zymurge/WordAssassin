@@ -17,9 +17,7 @@ The game ends when the 2nd to last person registers their death, leaving the las
 
 ## APIs
 
-- ### **Setup** *game-name passcode*
-  
-- ###  **Status** *game-name*
+- ###  **Status** *game-id*
         Game: <name>
         Status: {"starting" "running" "finished"}
         Time Running: dd hh:mm
@@ -27,11 +25,13 @@ The game ends when the 2nd to last person registers their death, leaving the las
         Players:
             Starting: num
             Alive: num
+
+- ###  CreateGame *game-id creator kill-dictionary passcode*
   
-- ###  AddPlayer *game-name player-tag*
+- ###  AddPlayer *game-id player-tag*
 
-- ###  StartGame *game-name*
+- ###  StartGame *game-id*
 
-- ###  ReportKill *game-name assassinated-by*
+- ###  ReportKill *game-id assassinated-by*
 
 - ###  Target

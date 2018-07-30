@@ -56,6 +56,7 @@ func TestPlayerAddedEvent_Decode(t *testing.T) {
 		original := PlayerAddedEvent{
 			ID:				"testID",
 			TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+			GameID:			"Redemption Song",
 			Name:			"Bob Marley",
 			SlackID:		"@wailers",
 			Email:			"wailer@marley.com",

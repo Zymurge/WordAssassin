@@ -12,9 +12,32 @@ type PlayerAddedEvent struct {
 	//GameEvent
 	ID          string    `json:"id" bson:"_id"`
 	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
-	Name        string    `json:"name" bson:"name"`
+	GameID		string	  `json:"gameId" bson:"gameid"`
 	SlackID     string    `json:"slackId" bson:"slackid"`
+	Name        string    `json:"name" bson:"name"`
 	Email       string    `json:"email" bson:"email"`
+}
+
+// NewPlayerAddedEvent returns an instance of the event, along with an automagically calculated ID
+func NewPlayerAddedEvent(gameid, slackid, name, email string) (result PlayerAddedEvent, err error) {
+	result = PlayerAddedEvent{
+		TimeCreated: time.Now(),
+		GameID:      gameid,
+		SlackID:     slackid,
+		Name:        name,
+		Email:       email,
+	}
+	// Parse and validate input
+	if gameid == "" {
+		err = fmt.Errorf("The request is missing GameID field")
+		return
+	}
+	if slackid == "" {
+		err = fmt.Errorf("The request is missing SlackID field")
+		return
+	}
+	result.ID = gameid + "+" + slackid
+	return
 }
 
 // GetID returns the unique identifer for this event
@@ -58,6 +81,13 @@ func (e *PlayerAddedEvent) Decode(b bson.M) error {
 		} 
 	} else {
 		return fmt.Errorf("Missing tag: name")
+	}	
+	if val, ok := b["gameid"]; ok {
+		if e.GameID, ok = val.(string); !ok {
+			return fmt.Errorf("Cast issue for GameID")
+		} 
+	} else {
+		return fmt.Errorf("Missing tag: gameid")
 	}
 	if val, ok := b["slackid"]; ok {
 		if e.SlackID, ok = val.(string); !ok {

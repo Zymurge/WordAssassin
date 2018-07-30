@@ -3,34 +3,23 @@ package types
 import (
 	"testing"
 	"github.com/stretchr/testify/require"
-	"time"
 
 	events "wordassassin/types/events"
 )
 
 func TestPlayerPool(t *testing.T) {
 	// Setup
-	target := PlayerPool{
-		GameID: "testing",
-	}
+	target := PlayerPool{}
 	require.NotNil(t, target)
-	p1 := NewPlayerFromEvent( events.PlayerAddedEvent{
-			ID:	         "p1",
-			TimeCreated: time.Now(),
-			Name:		 "Joe",
-			SlackID:	 "@Joe",
-			Email:		 "joe@wa.org",
-		} )
+	pe, err := events.NewPlayerAddedEvent("game1", "@Joe","Joe", "joe@wa.org" )
+	require.NoErrorf(t, err, "Error on NewPlayerAddedEvent creation: %v", err)
+	p1 := NewPlayerFromEvent(pe)
 	if err := target.AddPlayer(&p1); err != nil {
 		require.NoErrorf(t, err, "Didn't want to see: %v", err)
 	}
-	p2 := NewPlayerFromEvent( events.PlayerAddedEvent{
-			ID:	         "p2",
-			TimeCreated: time.Now(),
-			Name:		 "Jim",
-			SlackID:	 "@Jim",
-			Email:		 "jim@wa.org",
-		} )
+	pe, err = events.NewPlayerAddedEvent("game1", "@Jim","Jim", "jim@wa.org" )
+	require.NoErrorf(t, err, "Error on NewPlayerAddedEvent creation: %v", err)
+	p2 := NewPlayerFromEvent(pe)
 	if err := target.AddPlayer(&p2); err != nil {
 		require.NoErrorf(t, err, "Didn't want to see: %v", err)
 	}
@@ -48,22 +37,31 @@ func TestPlayerPool(t *testing.T) {
 		require.Error(t, err, "Should have thrown on missing ID")
 		require.Contains(t, err.Error(), "missing", "Error must mention the issue")
 	})
+	t.Run("GetByID: positive", func(t *testing.T) {
+		actual, err := target.GetPlayerByID(p2.GetID())
+		require.NoErrorf(t, err, "Positive tosses no errors, but this one did!: %v", err)
+		require.Equal(t, &p2, actual)
+	})
+	t.Run("GetByID: missing ID", func(t *testing.T) {
+		_, err := target.GetPlayerByID("bad ID")
+		require.Errorf(t, err, "Error you will If ID you miss")
+		require.Contains(t, err.Error(), "missing", "Error must mention the issue")
+	})
+	t.Run("GetByID: before players initialized", func(t *testing.T) {
+		badTarget := PlayerPool{}
+		_, err := badTarget.GetPlayerByID("who cares?")
+		require.Errorf(t, err, "Not sure what happens here")
+		require.Contains(t, err.Error(), "missing", "Error must mention the issue")
+	})
 	t.Run("Get: positive", func(t *testing.T) {
-		actual, err := target.GetPlayer(p2.GetID())
+		actual, err := target.GetPlayer(p2.GameID, p2.SlackID)
 		require.NoErrorf(t, err, "Positive tosses no errors, but this one did!: %v", err)
 		require.Equal(t, &p2, actual)
 	})
 	t.Run("Get: missing ID", func(t *testing.T) {
-		_, err := target.GetPlayer("bad ID")
+		_, err := target.GetPlayer(p2.GameID, "bad ID")
 		require.Errorf(t, err, "Error you will If ID you miss")
 		require.Contains(t, err.Error(), "missing", "Error must mention the issue")
 	})
-	t.Run("Get: before players initialized", func(t *testing.T) {
-		badTarget := PlayerPool{
-			GameID: "no players",
-		}
-		_, err := badTarget.GetPlayer("who cares?")
-		require.Errorf(t, err, "Not sure what happens here")
-		require.Contains(t, err.Error(), "missing", "Error must mention the issue")
-	})
+
 }

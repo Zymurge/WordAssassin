@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -24,17 +25,36 @@ var (
 	mongoURL string
 	logger   *log.Logger
 	mongo    *dao.MongoSession
+	games    types.GamePool
 	players  types.PlayerPool
 	handler  Handler
 )
 
-func addPlayer(c echo.Context) error {
-	// TODO: pass all vars (tag, name, email)
-	player := c.Param("tag")
-	if err := handler.OnPlayerAdded(player, player, "dummy@email.org"); err != nil {
+func createGame(c echo.Context) error {
+	gameid := c.Param("gameid")
+	creator := c.Param("creator")
+	var (
+		killdict string // get from query
+		passcode string // get from query
+	)
+
+	if err := handler.OnGameCreated(gameid, creator, killdict, passcode); err != nil {
 		return c.HTML(http.StatusInternalServerError, err.Error())
 	}
-	message := "Player added: " + player
+	message := fmt.Sprintf("<i>Not implemented</i><p>Game: %s  Creator: %s", gameid, creator)
+	return c.HTML(400, message)
+}
+
+func addPlayer(c echo.Context) error {
+	// TODO: pass all vars (tag, name, email)
+	gameid := c.Param("gameid")
+	slackid := c.Param("slackid")
+	name := c.Param("name")
+	email := c.Param("email")
+	if err := handler.OnPlayerAdded(gameid, slackid, name, email); err != nil {
+		return c.HTML(http.StatusInternalServerError, err.Error())
+	}
+	message := fmt.Sprintf("Player %s added to game %s", slackid, gameid)
 	return c.HTML(200, message)
 }
 
@@ -56,9 +76,9 @@ func main() {
 	}
 	mongo = dao.NewMongoSession(mongoURL, mongoDB, logger)
 
-	// TODO: rethink the gameID mapping per pool, but hardcode one for now
-	players = types.PlayerPool{GameID: "testGameID"}
-	handler = NewHandler(&players, mongo)
+	players = types.PlayerPool{}
+	games = types.GamePool{}
+	handler = NewHandler(&games, &players, mongo)
 
 	//*** Web Server Stuff ***//
 	e := echo.New()
@@ -69,7 +89,9 @@ func main() {
 
 	// Routes
 	e.GET("/", healthCheck)
-	e.POST("/addplayer/:tag", addPlayer)
+	e.GET("/health", healthCheck)
+	e.POST("/creategame/:gameid/:creator", createGame)
+	e.POST("/addplayer/:gameid/:slackid", addPlayer)
 
 	// Start server
 	e.Logger.Fatal(e.Start(port))

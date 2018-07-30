@@ -29,6 +29,7 @@ type GameCompletedEvent struct {
 type TargetAssignedEvent struct {
 	GameEvent
 	ID            string    `json:"id" bson:"_id"`
+	GameID		  string    `json:"gameId" bson:"gameid"`
 	TargetID      string    `json:"targetId"`
 	KillerID      string    `json:"killerId"`
 	KillWord      string    `json:"killword"`

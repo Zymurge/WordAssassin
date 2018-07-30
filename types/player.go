@@ -13,6 +13,7 @@ import (
 type Player struct {
 	ID          string	 	`json:"id" bson:"_id"`
 	TimeCreated time.Time	`json:"timeCreated" bson:"timecreated"`
+	GameID		string	  	`json:"gameId" bson:"gameid"`
 	Name        string		`json:"name" bson:"name"`
 	SlackID     string		`json:"slackId" bson:"slackid"`
 	Email       string		`json:"email" bson:"email"`
@@ -26,6 +27,7 @@ type Player struct {
 func NewPlayerFromEvent(ev events.PlayerAddedEvent) (p Player) {
 	p = Player{
 		ID:				ev.ID,
+		GameID:			ev.GameID,
 		TimeCreated:	ev.TimeCreated,
 		Name:			ev.Name,
 		SlackID:		ev.SlackID,
@@ -51,7 +53,6 @@ func (p *Player) SetTarget(targetID string, killWord string) {
 
 // PlayerPool manages the collection of players in a single game
 type PlayerPool struct {
-	GameID		string
 	players		map[string]*Player
 }
 
@@ -71,11 +72,17 @@ func (pool *PlayerPool) AddPlayer(player *Player) error {
 	return nil
 }
 
-// GetPlayer fetches the player specificed by the given ID. Errors on ID not found.
-func (pool *PlayerPool) GetPlayer(id string) (*Player, error) {
-	result, exists := pool.players[id]
+// GetPlayerByID fetches the player when the ID is known. Errors on ID not found.
+func (pool *PlayerPool) GetPlayerByID(searchid string) (*Player, error) {
+	result, exists := pool.players[searchid]
 	if !exists {
-		return nil, fmt.Errorf("missing ID: %s", id)
+		return nil, fmt.Errorf("missing ID: %s", searchid)
 	}
 	return result, nil
+}
+
+// GetPlayer fetches the player specificed by the given game and slack ID combo. Errors on ID not found.
+func (pool *PlayerPool) GetPlayer(gameid, slackid string) (*Player, error) {
+	searchid := gameid + "+" + slackid
+	return pool.GetPlayerByID(searchid)
 }
