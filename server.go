@@ -41,7 +41,7 @@ func createGame(c echo.Context) error {
 	if err := handler.OnGameCreated(gameid, creator, killdict, passcode); err != nil {
 		return c.HTML(http.StatusInternalServerError, err.Error())
 	}
-	message := fmt.Sprintf("<i>Not implemented</i><p>Game: %s  Creator: %s", gameid, creator)
+	message := fmt.Sprintf("<h3>Game Created</h3><p>Game: %s  Creator: %s", gameid, creator)
 	return c.HTML(400, message)
 }
 

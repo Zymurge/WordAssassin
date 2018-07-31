@@ -79,7 +79,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		return
 	}
 	if game.Status != types.Starting {
-		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
+		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%d", gameid, game.Status)
 		return
 	}
 

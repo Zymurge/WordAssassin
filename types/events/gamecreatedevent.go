@@ -9,26 +9,32 @@ import (
 
 // GameCreatedEvent is created once per game instance
 type GameCreatedEvent struct {
-	GameEvent
 	ID             string    `json:"id" bson:"_id"`
 	TimeCreated    time.Time `json:"timeCreated"`
+	EventType      string    `json:"eventType"`
 	GameCreator    string    `json:"gameCreator"`
 	KillDictionary string    `json:"killDictionary"`
-	Passcode	   string	 `json:"passcode" bson:"passcode"`
+	Passcode       string    `json:"passcode" bson:"passcode"`
 }
 
 // NewGameCreatedEvent returns an instance of the event
 func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result GameCreatedEvent, err error) {
-	// TODO: validate inputs
-	if( gameid == "" ) {
-		err = fmt.Errorf("missing GameID")
-	}
 	result = GameCreatedEvent{
-		ID:				gameid,
-		TimeCreated:	time.Now(),
-		GameCreator:	creator,
+		ID:             gameid,
+		TimeCreated:    time.Now(),
+		EventType:      "GameCreatedEvent",
+		GameCreator:    creator,
 		KillDictionary: killdict,
-		Passcode:		passcode,
+		Passcode:       passcode,
+	}
+	// TODO: validate inputs
+	if gameid == "" {
+		err = fmt.Errorf("The request is missing GameID field")
+		return
+	}
+	if creator == "" {
+		err = fmt.Errorf("The request is missing Creator field")
+		return
 	}
 	return
 }
@@ -59,6 +65,13 @@ func (e *GameCreatedEvent) Decode(b bson.M) error {
 		e.TimeCreated = e.TimeCreated.UTC()
 	} else {
 		return fmt.Errorf("Missing key: timecreated")
+	}
+	if val, ok := b["eventtype"]; ok {
+		if e.KillDictionary, ok = val.(string); !ok {
+			return fmt.Errorf("Cast issue for EventType")
+		}
+	} else {
+		return fmt.Errorf("Missing key: eventtype")
 	}
 	if val, ok := b["gamecreator"]; ok {
 		if e.GameCreator, ok = val.(string); !ok {

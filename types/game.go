@@ -12,16 +12,16 @@ type GameStatus int
 
 // Game - The elements necessary to track a single game of wordassassin.
 type Game struct {
-	ID         		string	 	`json:"id" bson:"_id"`
-	TimeCreated    	time.Time	`json:"timeCreated" bson:"timecreated"`
-	GameCreator		string	  	`json:"gameId" bson:"gameid"`
-	KillDictionary  string		`json:"name" bson:"name"`
-	Passcode		string		`json:"passcode" bson:"passcode"`
-	Status			GameStatus	`json:"status" bson:"status"`
-// Other possible things:
-//	NumPlayers
-//	TargetList
-//	NumKills
+	ID             string     `json:"id" bson:"_id"`
+	TimeCreated    time.Time  `json:"timeCreated" bson:"timecreated"`
+	GameCreator    string     `json:"gameId" bson:"gameid"`
+	KillDictionary string     `json:"name" bson:"name"`
+	Passcode       string     `json:"passcode" bson:"passcode"`
+	Status         GameStatus `json:"status" bson:"status"`
+	// Other possible things:
+	//	NumPlayers
+	//	TargetList
+	//	NumKills
 }
 
 // Constants for GameStatus
@@ -35,12 +35,12 @@ const (
 // NewGameFromEvent instantiates a Player from a PlayerAdedEvent
 func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
 	g = Game{
-		ID:				ev.ID,
-		TimeCreated:	ev.TimeCreated,
-		GameCreator:	ev.GameCreator,
-		KillDictionary:	ev.KillDictionary,
-		Passcode:		ev.Passcode,
-		Status:			Playing,
+		ID:             ev.ID,
+		TimeCreated:    ev.TimeCreated,
+		GameCreator:    ev.GameCreator,
+		KillDictionary: ev.KillDictionary,
+		Passcode:       ev.Passcode,
+		Status:         Starting,
 	}
 	return
 }
@@ -82,7 +82,7 @@ func (pool *GamePool) AddGame(game *Game) error {
 	return nil
 }
 
-// GetGame gets the game specified by the requested ID. 
+// GetGame gets the game specified by the requested ID.
 // Returns:
 // -- the game object for that ID
 // -- true for exists if it does, false if it don't

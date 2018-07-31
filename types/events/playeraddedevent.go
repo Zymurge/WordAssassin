@@ -9,9 +9,9 @@ import (
 
 // PlayerAddedEvent is created for each time a player is added to the game
 type PlayerAddedEvent struct {
-	//GameEvent
 	ID          string    `json:"id" bson:"_id"`
 	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
+	EventType	string	  `json:"eventType" bson:"eventtype"`
 	GameID		string	  `json:"gameId" bson:"gameid"`
 	SlackID     string    `json:"slackId" bson:"slackid"`
 	Name        string    `json:"name" bson:"name"`
@@ -22,6 +22,7 @@ type PlayerAddedEvent struct {
 func NewPlayerAddedEvent(gameid, slackid, name, email string) (result PlayerAddedEvent, err error) {
 	result = PlayerAddedEvent{
 		TimeCreated: time.Now(),
+		EventType:	 "PlayerAddedEvent",
 		GameID:      gameid,
 		SlackID:     slackid,
 		Name:        name,
@@ -75,6 +76,13 @@ func (e *PlayerAddedEvent) Decode(b bson.M) error {
 	} else {
 		return fmt.Errorf("Missing tag: timecreated")
 	}
+	if val, ok := b["eventtype"]; ok {
+		if e.Name, ok = val.(string); !ok {
+			return fmt.Errorf("Cast issue for EventType")
+		} 
+	} else {
+		return fmt.Errorf("Missing tag: eventType")
+	}	
 	if val, ok := b["name"]; ok {
 		if e.Name, ok = val.(string); !ok {
 			return fmt.Errorf("Cast issue for Name")
