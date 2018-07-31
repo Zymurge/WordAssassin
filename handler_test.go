@@ -143,7 +143,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 		TimeCreated: time.Now(), 
 		GameCreator: "@testmaster", 
 		KillDictionary: "websters", 
-		Status: types.GameStatusStarting,
+		Status: types.Starting,
 	}
 	testGPool.AddGame(&dupGame)
 

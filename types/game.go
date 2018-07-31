@@ -7,6 +7,9 @@ import (
 	events "wordassassin/types/events"
 )
 
+// GameStatus allows management of game state
+type GameStatus int
+
 // Game - The elements necessary to track a single game of wordassassin.
 type Game struct {
 	ID         		string	 	`json:"id" bson:"_id"`
@@ -14,22 +17,19 @@ type Game struct {
 	GameCreator		string	  	`json:"gameId" bson:"gameid"`
 	KillDictionary  string		`json:"name" bson:"name"`
 	Passcode		string		`json:"passcode" bson:"passcode"`
-	Status			string		`json:"status" bson:"status"`
+	Status			GameStatus	`json:"status" bson:"status"`
 // Other possible things:
 //	NumPlayers
 //	TargetList
 //	NumKills
 }
 
-// Constants for Game.Status
+// Constants for GameStatus
 const (
-	GameStatusStarting string = "starting"
-	GameStatusPlaying  string = "playing"
-	GameStatusFinished string = "finished"
-	GameStatusAborted  string = "aborted"
-
-	PlayerStatusAlive  string = "alive"
-	PlayerStatusDead   string = "dead"
+	Starting GameStatus = iota + 1
+	Playing
+	Finished
+	Aborted
 )
 
 // NewGameFromEvent instantiates a Player from a PlayerAdedEvent
@@ -40,7 +40,7 @@ func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
 		GameCreator:	ev.GameCreator,
 		KillDictionary:	ev.KillDictionary,
 		Passcode:		ev.Passcode,
-		Status:			GameStatusStarting,
+		Status:			Playing,
 	}
 	return
 }

@@ -9,6 +9,9 @@ import (
 	events "wordassassin/types/events"
 )
 
+// PlayerStatus allows management of player state
+type PlayerStatus int
+
 // Player - It's what it sounds like.
 type Player struct {
 	ID          string	 	`json:"id" bson:"_id"`
@@ -17,11 +20,17 @@ type Player struct {
 	Name        string		`json:"name" bson:"name"`
 	SlackID     string		`json:"slackId" bson:"slackid"`
 	Email       string		`json:"email" bson:"email"`
-	Status		string		`json:"status" bson:"status"`
+	Status		PlayerStatus `json:"status" bson:"status"`
 	Kills		int			`json:"kills" bson:"kills"`
 	Target		string		`json:"target" bson:"target"`
 	KillWord	string		`json:"killword" bson:"killword"`
 }
+
+// Constants for PlayerStatus
+const (
+	Alive PlayerStatus = iota + 1
+	Dead
+)
 
 // NewPlayerFromEvent instantiates a Player from a PlayerAdedEvent
 func NewPlayerFromEvent(ev events.PlayerAddedEvent) (p Player) {
@@ -32,7 +41,7 @@ func NewPlayerFromEvent(ev events.PlayerAddedEvent) (p Player) {
 		Name:			ev.Name,
 		SlackID:		ev.SlackID,
 		Email:			ev.Email,
-		Status:			"Active",
+		Status:			Alive,
 		Kills:			0,
 	}
 	return

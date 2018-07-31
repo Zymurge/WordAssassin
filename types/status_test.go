@@ -11,67 +11,68 @@ import (
 )
 
 const (
-	testGSstr string = "{'id': '123', 'game': 'testGame', 'status': 'running', 'starttime': 0, 'startplayers': 99, 'remainplayers': 33}"
+	testGTstr string = "{'id': '123', 'game': 'testGame', 'status': 'running', 'starttime': 0, 'startplayers': 99, 'remainplayers': 33}"
 )
-var	testGS GameStatus = GameStatus{
+
+var	testGT GameTracker = GameTracker{
 		ID: "jsonform",
 		Game: "some game",
-		Status: GameStatusStarting,
+		Status: Starting,
 		StartTime: time.Now(),
 		StartPlayers:  13,
 		RemainPlayers: 3,
 	}
 
-func testGSjson(t *testing.T, gs GameStatus) []byte {
-	marshalledJSONstarttime, err := gs.StartTime.MarshalJSON()
+func testGTjson(t *testing.T, gt GameTracker) []byte {
+	marshalledJSONstarttime, err := gt.StartTime.MarshalJSON()
 	require.NoErrorf(t, err, "Got %v in parsing time", err)
-	testGSjson := make([]byte, 0)
-	testGSjson = append( testGSjson, []byte(`{"id":"`)[:]...)
-	testGSjson = append( testGSjson, gs.ID[:]...)
-	testGSjson = append( testGSjson, []byte(`","game":"`)[:]...)
-	testGSjson = append( testGSjson, gs.Game[:]...)
-	testGSjson = append( testGSjson, []byte(`","status":"`)[:]...)
-	testGSjson = append( testGSjson, gs.Status[:]...)
-	testGSjson = append( testGSjson, []byte(`","starttime":`)[:]...)
-	testGSjson = append( testGSjson, marshalledJSONstarttime[:]...)
-	testGSjson = append( testGSjson, []byte(`,"startplayers":`)[:]...)
-	testGSjson = append( testGSjson, strconv.Itoa(int(gs.StartPlayers))[:]...)
-	testGSjson = append( testGSjson, []byte(`,"remainplayers":`)[:]...)
-	testGSjson = append( testGSjson, strconv.Itoa(int(gs.RemainPlayers))[:]...)
-	testGSjson = append( testGSjson, []byte(`}`)[:]...)
-	return testGSjson
+	testGTjson := make([]byte, 0)
+	testGTjson = append( testGTjson, []byte(`{"id":"`)[:]...)
+	testGTjson = append( testGTjson, gt.ID[:]...)
+	testGTjson = append( testGTjson, []byte(`","game":"`)[:]...)
+	testGTjson = append( testGTjson, gt.Game[:]...)
+	testGTjson = append( testGTjson, []byte(`","status":"`)[:]...)
+	testGTjson = append( testGTjson, gt.Status[:]...)
+	testGTjson = append( testGTjson, []byte(`","starttime":`)[:]...)
+	testGTjson = append( testGTjson, marshalledJSONstarttime[:]...)
+	testGTjson = append( testGTjson, []byte(`,"startplayers":`)[:]...)
+	testGTjson = append( testGTjson, strconv.Itoa(int(gt.StartPlayers))[:]...)
+	testGTjson = append( testGTjson, []byte(`,"remainplayers":`)[:]...)
+	testGTjson = append( testGTjson, strconv.Itoa(int(gt.RemainPlayers))[:]...)
+	testGTjson = append( testGTjson, []byte(`}`)[:]...)
+	return testGTjson
 }
 
 func TestStatusCtor(t *testing.T) {
-	result := GameStatus{
+	result := GameTracker{
 		ID:           "123",
 		Game:         "testGame",
 		StartPlayers: 99,
 	}
-	require.IsType(t, GameStatus{}, result)
+	require.IsType(t, GameTracker{}, result)
 	require.Equal(t, "123", result.ID)
 	require.Equal(t, "testGame", result.Game)
 	require.Equal(t, 99, result.StartPlayers)
 }
 
-func TestGameStatusFromJSON(t *testing.T) {
+func TestGameTrackerFromJSON(t *testing.T) {
 	t.Run("Positive", func(t *testing.T) {
-		result, err := GameStatusFromJSON(testGSjson(t, testGS))
+		result, err := GameTrackerFromJSON(testGTjson(t, testGT))
 		require.NoError(t, err, "Positive test should not throw an error")
-		require.IsType(t, GameStatus{}, result, "Should return a GameStatus struct")
-		require.Equal(t, testGS.ID, result.ID, "ID not mapped as expected")
-		require.Equal(t, testGS.Status, result.Status, "Status not mapped as expected")
-		require.Equal(t, testGS.StartTime.Year(), result.StartTime.Year(), "Gotta get my Rush on here. Got time %s", result.StartTime.Year())
+		require.IsType(t, GameTracker{}, result, "Should return a GameTracker struct")
+		require.Equal(t, testGT.ID, result.ID, "ID not mapped as expected")
+		require.Equal(t, testGT.Status, result.Status, "Status not mapped as expected")
+		require.Equal(t, testGT.StartTime.Year(), result.StartTime.Year(), "Gotta get my Rush on here. Got time %s", result.StartTime.Year())
 	})
 	t.Run("Bad JSON format", func(t *testing.T) {
 		testJSON := []byte(`{"id":"Me be bad","game":"broken json",badvariable":6,"status":"starting"}`)
-		_, err := GameStatusFromJSON(testJSON)
+		_, err := GameTrackerFromJSON(testJSON)
 		require.Error(t, err, "Looking for an unmarshal error")
 		require.Contains(t, err.Error(), "unmarshal", "Hope the unmarshal keyword is specified in the err message")
 	})
 	t.Run("Missing ID", func(t *testing.T) {
 		testJSON := []byte(`{"id_poop":42,"status":"finished"}`)
-		_, err := GameStatusFromJSON(testJSON)
+		_, err := GameTrackerFromJSON(testJSON)
 		require.Error(t, err, "Looking for a no ID error")
 		require.Contains(t, err.Error(), "ID", "Hope the ID keyword is specified in the err message")
 	})
@@ -79,17 +80,17 @@ func TestGameStatusFromJSON(t *testing.T) {
 }
 
 func TestJSONForm(t *testing.T) {
-	testGS := GameStatus{
+	testGT := GameTracker{
 		ID: "jsonform",
 		Game: "some game",
-		Status: GameStatusStarting,
+		Status: GameTrackerStarting,
 		StartTime: time.Now(),
 		StartPlayers:  13,
 		RemainPlayers: 3,
 	}
 	t.Run("Positive", func(t *testing.T) {
-		expectedJSON := testGSjson(t,testGS)
-		actualJSON := testGS.JSONForm()
+		expectedJSON := testGTjson(t,testGT)
+		actualJSON := testGT.JSONForm()
 		require.Equal(t, expectedJSON, actualJSON)
 	})
 }
