@@ -14,6 +14,23 @@ type GameCreatedEvent struct {
 	TimeCreated    time.Time `json:"timeCreated"`
 	GameCreator    string    `json:"gameCreator"`
 	KillDictionary string    `json:"killDictionary"`
+	Passcode	   string	 `json:"passcode" bson:"passcode"`
+}
+
+// NewGameCreatedEvent returns an instance of the event
+func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result GameCreatedEvent, err error) {
+	// TODO: validate inputs
+	if( gameid == "" ) {
+		err = fmt.Errorf("missing GameID")
+	}
+	result = GameCreatedEvent{
+		ID:				gameid,
+		TimeCreated:	time.Now(),
+		GameCreator:	creator,
+		KillDictionary: killdict,
+		Passcode:		passcode,
+	}
+	return
 }
 
 // GetID returns the unique identifer for this event

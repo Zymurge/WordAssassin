@@ -73,7 +73,7 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		TimeCreated: time.Now(), 
 		GameCreator: "testmaster", 
 		KillDictionary: "websters", 
-		Status: "starting",
+		Status: types.GameStatusStarting,
 	}
 	testGPool.AddGame(&game1)
 	// Add a preexisting player to support duplicate cases
@@ -129,7 +129,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 		{ "duplicate gameID (at mongo)", testHandler, true, "dupe_game already created",
 			args{ "dupe_game", "@testmaster", "somedict.txt", "topsecret" }, 
 			mockControls{"positive", "duplicate", nil} },
-		{ "empty gameID argument", testHandler, true, "missing gameID",
+		{ "empty gameID argument", testHandler, true, "missing GameID",
 			args{ "", "@someone", "whatev", "xxx" }, 
 			mockControls{"positive", "positive", nil} },
 		{ "mongo fail", testHandler, true, "connect",
@@ -143,7 +143,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 		TimeCreated: time.Now(), 
 		GameCreator: "@testmaster", 
 		KillDictionary: "websters", 
-		Status: "starting",
+		Status: types.GameStatusStarting,
 	}
 	testGPool.AddGame(&dupGame)
 

@@ -13,12 +13,24 @@ type Game struct {
 	TimeCreated    	time.Time	`json:"timeCreated" bson:"timecreated"`
 	GameCreator		string	  	`json:"gameId" bson:"gameid"`
 	KillDictionary  string		`json:"name" bson:"name"`
+	Passcode		string		`json:"passcode" bson:"passcode"`
 	Status			string		`json:"status" bson:"status"`
 // Other possible things:
 //	NumPlayers
 //	TargetList
 //	NumKills
 }
+
+// Constants for Game.Status
+const (
+	GameStatusStarting string = "starting"
+	GameStatusPlaying  string = "playing"
+	GameStatusFinished string = "finished"
+	GameStatusAborted  string = "aborted"
+
+	PlayerStatusAlive  string = "alive"
+	PlayerStatusDead   string = "dead"
+)
 
 // NewGameFromEvent instantiates a Player from a PlayerAdedEvent
 func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
@@ -27,7 +39,8 @@ func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
 		TimeCreated:	ev.TimeCreated,
 		GameCreator:	ev.GameCreator,
 		KillDictionary:	ev.KillDictionary,
-		Status:			"Starting",
+		Passcode:		ev.Passcode,
+		Status:			GameStatusStarting,
 	}
 	return
 }

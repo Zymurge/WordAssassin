@@ -31,8 +31,38 @@ func NewHandler(gg *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbs
 // A unique game ID is created here.
 // Errors:
 // -- creator or killdict is empty
-func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) error {
-	return fmt.Errorf("Handler.OnGameCreated: Not implemented")
+func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err error) {
+	// Validate the params
+
+	// Create and persist the event to request a new game
+	var ev events.GameCreatedEvent
+	if ev, err = events.NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
+		 return
+	}
+	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
+		// Want to handle a dup write with more graceful wording for downstream consumers
+		if strings.Contains(mongoerr.Error(), "duplicate") {
+			err = fmt.Errorf("Game %s already created", gameid)
+			return
+		}
+		err = fmt.Errorf("Mongodb issue on GameCreated event write: %s", mongoerr.Error())
+		return
+	}
+
+	// Create and register the game object in the game pool
+	game := types.NewGameFromEvent(ev)
+	if gperr := h.gPool.AddGame(&game); gperr != nil {
+		// Should catch all dups at the event level
+		if strings.Contains(gperr.Error(), "duplicate") {
+			// TODO: log this issue
+			err = fmt.Errorf("Something bad happened. GamePool out of sync with mongo events")
+			return
+		}
+		err = fmt.Errorf("Issue on GameCreated add to GamePool: %s", gperr.Error())
+		return
+	}
+
+	return nil
 }
 
 // OnPlayerAdded handles coordination when a player is added to the game.
@@ -48,7 +78,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		err = fmt.Errorf("The requested GameID: %s doesn't exist on this server", gameid)
 		return
 	}
-	if game.Status != "starting" {
+	if game.Status != types.GameStatusStarting {
 		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
 		return
 	}

@@ -16,7 +16,7 @@ const (
 var	testGS GameStatus = GameStatus{
 		ID: "jsonform",
 		Game: "some game",
-		Status: "starting",
+		Status: GameStatusStarting,
 		StartTime: time.Now(),
 		StartPlayers:  13,
 		RemainPlayers: 3,
@@ -82,7 +82,7 @@ func TestJSONForm(t *testing.T) {
 	testGS := GameStatus{
 		ID: "jsonform",
 		Game: "some game",
-		Status: "starting",
+		Status: GameStatusStarting,
 		StartTime: time.Now(),
 		StartPlayers:  13,
 		RemainPlayers: 3,
