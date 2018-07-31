@@ -73,7 +73,7 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		TimeCreated: time.Now(), 
 		GameCreator: "testmaster", 
 		KillDictionary: "websters", 
-		Status: types.GameStatusStarting,
+		Status: types.Starting,
 	}
 	testGPool.AddGame(&game1)
 	// Add a preexisting player to support duplicate cases

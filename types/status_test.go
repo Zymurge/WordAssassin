@@ -31,9 +31,9 @@ func testGTjson(t *testing.T, gt GameTracker) []byte {
 	testGTjson = append( testGTjson, gt.ID[:]...)
 	testGTjson = append( testGTjson, []byte(`","game":"`)[:]...)
 	testGTjson = append( testGTjson, gt.Game[:]...)
-	testGTjson = append( testGTjson, []byte(`","status":"`)[:]...)
-	testGTjson = append( testGTjson, gt.Status[:]...)
-	testGTjson = append( testGTjson, []byte(`","starttime":`)[:]...)
+	testGTjson = append( testGTjson, []byte(`","status":`)[:]...)
+	testGTjson = append( testGTjson, strconv.Itoa(int(gt.Status))[:]...)
+	testGTjson = append( testGTjson, []byte(`,"starttime":`)[:]...)
 	testGTjson = append( testGTjson, marshalledJSONstarttime[:]...)
 	testGTjson = append( testGTjson, []byte(`,"startplayers":`)[:]...)
 	testGTjson = append( testGTjson, strconv.Itoa(int(gt.StartPlayers))[:]...)
@@ -71,7 +71,7 @@ func TestGameTrackerFromJSON(t *testing.T) {
 		require.Contains(t, err.Error(), "unmarshal", "Hope the unmarshal keyword is specified in the err message")
 	})
 	t.Run("Missing ID", func(t *testing.T) {
-		testJSON := []byte(`{"id_poop":42,"status":"finished"}`)
+		testJSON := []byte(`{"id_poop":42,"status":` + strconv.Itoa(int(Finished)) + `}`)
 		_, err := GameTrackerFromJSON(testJSON)
 		require.Error(t, err, "Looking for a no ID error")
 		require.Contains(t, err.Error(), "ID", "Hope the ID keyword is specified in the err message")
@@ -83,7 +83,7 @@ func TestJSONForm(t *testing.T) {
 	testGT := GameTracker{
 		ID: "jsonform",
 		Game: "some game",
-		Status: GameTrackerStarting,
+		Status: Starting,
 		StartTime: time.Now(),
 		StartPlayers:  13,
 		RemainPlayers: 3,
