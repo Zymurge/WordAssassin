@@ -51,14 +51,15 @@ func (e *PlayerAddedEvent) GetTimeCreated() time.Time {
 	return e.TimeCreated
 }
 
-// SetBSON implements the mgo.bson Setter interface to allow for polymorphic unmarshalling
-func (e *PlayerAddedEvent) SetBSON(raw bson.Raw) error {
+ // Decode populates this instance from the supplied bson
+func (e *PlayerAddedEvent) Decode(raw bson.Raw) error {
 	if err := raw.Unmarshal(e); err != nil {
 		return err
 	}
-	return nil	
+	return nil
 }
 
+/*
 // Decode populates this instance from the supplied bson
 func (e *PlayerAddedEvent) Decode(b bson.M) error {
 	if val, ok := b["_id"]; ok {
@@ -114,3 +115,4 @@ func (e *PlayerAddedEvent) Decode(b bson.M) error {
 
 	return nil
 }
+*/

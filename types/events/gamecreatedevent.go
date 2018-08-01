@@ -49,6 +49,15 @@ func (e *GameCreatedEvent) GetTimeCreated() time.Time {
 	return e.TimeCreated
 }
 
+ // Decode populates this instance from the supplied bson
+func (e *GameCreatedEvent) Decode(raw bson.Raw) error {
+	if err := raw.Unmarshal(e); err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
 // Decode populates this instance from the supplied bson
 func (e *GameCreatedEvent) Decode(b bson.M) error {
 	if val, ok := b["_id"]; ok {
@@ -89,3 +98,4 @@ func (e *GameCreatedEvent) Decode(b bson.M) error {
 	}
 	return nil
 }
+*/

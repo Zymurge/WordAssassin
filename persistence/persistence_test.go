@@ -2,7 +2,7 @@ package persistence
 
 import (
 	"bytes"
-	"fmt"
+//	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -335,30 +335,9 @@ func (e *testGenericPersistable) GetTimeCreated() time.Time {
 	return e.TimeCreated
 }
 
-// Decode populates this instance from the supplied bson
-func (e *testGenericPersistable) Decode(b bson.M) error {
-	if val, ok := b["_id"]; ok {
-		if e.ID, ok = val.(string); !ok {
-			return fmt.Errorf("Cast issue for ID")
-		}
-	} else {
-		return fmt.Errorf("Missing tag: _id")
+func (e *testGenericPersistable) Decode(raw bson.Raw) error {
+	if err := raw.Unmarshal(e); err != nil {
+		return err
 	}
-	if val, ok := b["timecreated"]; ok {
-		if e.TimeCreated, ok = val.(time.Time); !ok {
-			return fmt.Errorf("Cast issue for TimeCreated")
-		}
-		e.TimeCreated = e.TimeCreated.UTC()
-	} else {
-		return fmt.Errorf("Missing tag: timecreated")
-	}
-	if val, ok := b["name"]; ok {
-		if e.Name, ok = val.(string); !ok {
-			return fmt.Errorf("Cast issue for Name")
-		}
-	} else {
-		return fmt.Errorf("Missing tag: name")
-	}
-
 	return nil
 }

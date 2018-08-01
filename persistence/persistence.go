@@ -14,7 +14,7 @@ import (
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
 type Persistable interface {
 	GetID() string
-	Decode(bson.M) error
+	Decode(bson.Raw) error
 }
 
 // MongoAbstraction defines the set of DAL functions for accessing this Mongo collection
@@ -114,7 +114,7 @@ func (ms *MongoSession) FetchFromCollection(coll string, id string, result Persi
 	}
 	myCollection := ms.db.C(coll)
 	q := myCollection.FindId(id)
-	var queryResult bson.M
+	var queryResult bson.Raw
 	err = q.One(&queryResult)
 	if err != nil {
 		return

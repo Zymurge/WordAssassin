@@ -6,11 +6,6 @@ import (
 	"time"
 )
 
-// MongoID reresents an interface for any object storeable in mongo with an explicit ID field
-type MongoID interface {
-	GetID() string
-}
-
 // GameTracker contains the coords and methods to handle a 3 axis location on a hex map
 type GameTracker struct {
 	ID            string     `json:"id" bson:"_id"`
