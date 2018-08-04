@@ -1,6 +1,7 @@
 package events
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 		}
 		asBSON, err := bson.Marshal(original)
 		require.NoError(t, err, "Failure to marshal test object to BSON: %v", err)
-		originalAsMap := bson.M{}
+		originalAsMap := bson.Raw{}
 		err = bson.Unmarshal(asBSON, &originalAsMap)
 		require.NoError(t, err, "Failure to unmarshal test object to map: %v", err)
 	t.Run("Positive", func(t *testing.T){
@@ -32,7 +33,7 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 	t.Run("Broken Mapping", func(t *testing.T){
 		// reset an expected string type to an int. Expect decode to err on this
 		brokenMap := originalAsMap
-		brokenMap["killdictionary"] = 13
+		brokenMap.Data = append(brokenMap.Data,[]byte(`junk`)[:]...)
 		actual := &GameCreatedEvent{}
 		err = actual.Decode(brokenMap)
 		require.Error(t, err, "Bad mapping should throw an error")
@@ -42,7 +43,8 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 	t.Run("Missing tag", func(t *testing.T){
 		// remove an expected k/v pair. Expect decode to err on this
 		brokenMap := originalAsMap
-		delete( brokenMap, "timecreated" )
+		bytes.Trim(brokenMap.Data,"timecreated")
+		//delete( brokenMap, "timecreated" )
 		actual := &GameCreatedEvent{}
 		err = actual.Decode(brokenMap)
 		require.Error(t, err, "Missing key should throw an error")
@@ -53,28 +55,28 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 }
 
 func TestPlayerAddedEvent_Decode(t *testing.T) {
-		original := PlayerAddedEvent{
+		original := PlayerAddedEvent {
 			ID:				"testID",
 			TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+			EventType:		"PlayerAddedEvent",
 			GameID:			"Redemption Song",
 			Name:			"Bob Marley",
 			SlackID:		"@wailers",
 			Email:			"wailer@marley.com",
 		}
-		asBSON, err := bson.Marshal(original)
+		asBSON := bson.Raw{}
+		var err error
+		asBSON.Data, err = bson.Marshal(original)
 		require.NoError(t, err, "Failure to marshal test object to BSON: %v", err)
-		asM := bson.M{}
-		err = bson.Unmarshal(asBSON, &asM)
-		require.NoError(t, err, "Failure to unmarshal test object to map: %v", err)
-	t.Run("Positive", func(t *testing.T){
+	t.Run("Positive", func(t *testing.T) {
 		actual := &PlayerAddedEvent{}
-		err = actual.Decode(asM)
-		require.NoError(t, err, "Failure to marshal test object to BSON: %v", err)
+		err = actual.Decode(asBSON)
+		require.NoError(t, err, "Failure to Decode BSON: %v", err)
 		require.Equal(t, original.ID, actual.ID)
 		require.Equal(t, original.TimeCreated, actual.TimeCreated)
 		require.Equal(t, original.Name, actual.Name)
 		require.Equal(t, original.SlackID, actual.SlackID)
 		require.Equal(t, original.Email, actual.Email)
-	})
+	} )
 
 }

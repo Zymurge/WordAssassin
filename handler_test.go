@@ -59,6 +59,9 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		{ "gameID doesn't exist", testHandler, true, "missing_gameid doesn't exist",
 			args{ "missing_gameid", "@someone", "someone", "bad@email.org" }, 
 			mockControls{"positive", "positive", nil} },
+		{ "gameID already started", testHandler, true, "not accepting players",
+			args{ "started_gameid", "@toolate", "lagger", "tomorrow@procrastinate.org" }, 
+			mockControls{"positive", "positive", nil} },
 		{ "empty GameID argument", testHandler, true, "doesn't exist",
 			args{ "", "@someone", "someone","bad@email.org" }, 
 			mockControls{"positive", "positive", nil} },
@@ -76,6 +79,15 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		Status: types.Starting,
 	}
 	testGPool.AddGame(&game1)
+	// Add a game named "started_gameid" for cases that expect it
+	started := types.Game{ 
+		ID: "started_gameid", 
+		TimeCreated: time.Now(), 
+		GameCreator: "testmaster", 
+		KillDictionary: "websters", 
+		Status: types.Playing,
+	}
+	testGPool.AddGame(&started)
 	// Add a preexisting player to support duplicate cases
 	dupEv, _ := events.NewPlayerAddedEvent("game1","@dupe_player", "", "")
 	dupPlayer := types.NewPlayerFromEvent(dupEv)

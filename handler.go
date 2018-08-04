@@ -114,3 +114,13 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 
 	return nil
 }
+
+// GetGameStatus produces a game status report for the specified gameid
+func (h *Handler) GetGameStatus(gameid string) (result string, exists bool) {
+	var game *types.Game
+	if game, exists = h.gPool.GetGame(gameid); !exists {
+		return
+	}
+	result = game.GetStatusReport()
+	return
+}

@@ -18,8 +18,10 @@ type Game struct {
 	KillDictionary string     `json:"name" bson:"name"`
 	Passcode       string     `json:"passcode" bson:"passcode"`
 	Status         GameStatus `json:"status" bson:"status"`
+	StartTime      time.Time  `json:"starttime"`
+	StartPlayers   int        `json:"startplayers"`
+	RemainPlayers  int        `json:"remainplayers"`
 	// Other possible things:
-	//	NumPlayers
 	//	TargetList
 	//	NumKills
 }
@@ -48,6 +50,22 @@ func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
 // GetID getter for ID field
 func (g *Game) GetID() string {
 	return g.ID
+}
+
+// GetStatus translates the status enum
+func (g *Game) GetStatus() string {
+	// TODO: map to string values of enum
+	return fmt.Sprintf("Status lookup for %d", g.Status)
+}
+
+// GetStatusReport generates a status report for this game instance
+func (g *Game) GetStatusReport() string {
+	result := 
+		fmt.Sprintf("Game Status for %s:\n\n", g.GetID()) +
+		fmt.Sprintf("   Status: %s\n", 	       g.GetStatus()) +
+		fmt.Sprintf("   # Players: %d\n",      g.StartPlayers)
+
+	return result
 }
 
 // Start does whatever is needed to transition from setup to go time

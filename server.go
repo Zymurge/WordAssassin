@@ -30,6 +30,15 @@ var (
 	handler  Handler
 )
 
+func getGameStatus(c echo.Context) error {
+	gameid := c.Param("gameid")
+	if message, exists := handler.GetGameStatus(gameid); exists {
+		return c.HTML(http.StatusOK, message)
+	}
+	message := fmt.Sprintf("Game %s not found", gameid)
+	return c.HTML(http.StatusNotFound, message)
+}
+
 func createGame(c echo.Context) error {
 	gameid := c.Param("gameid")
 	creator := c.Param("creator")
@@ -42,7 +51,7 @@ func createGame(c echo.Context) error {
 		return c.HTML(http.StatusInternalServerError, err.Error())
 	}
 	message := fmt.Sprintf("<h3>Game Created</h3><p>Game: %s  Creator: %s", gameid, creator)
-	return c.HTML(400, message)
+	return c.HTML(http.StatusOK, message)
 }
 
 func addPlayer(c echo.Context) error {
@@ -55,7 +64,7 @@ func addPlayer(c echo.Context) error {
 		return c.HTML(http.StatusInternalServerError, err.Error())
 	}
 	message := fmt.Sprintf("Player %s added to game %s", slackid, gameid)
-	return c.HTML(200, message)
+	return c.HTML(http.StatusOK, message)
 }
 
 func healthCheck(c echo.Context) error {
@@ -90,6 +99,7 @@ func main() {
 	// Routes
 	e.GET("/", healthCheck)
 	e.GET("/health", healthCheck)
+	e.GET("/gamestatus/:gameid", getGameStatus)
 	e.POST("/creategame/:gameid/:creator", createGame)
 	e.POST("/addplayer/:gameid/:slackid", addPlayer)
 
