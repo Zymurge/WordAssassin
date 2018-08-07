@@ -1,17 +1,18 @@
 package events
 
 import (
-	"reflect"
 	"testing"
-	"time"
-
 	"github.com/stretchr/testify/require"
+	"reflect"
+	"time"
+	bson "github.com/globalsign/mgo/bson"
 )
 
 func TestNewPlayerAddedEvent(t *testing.T) {
 	expected := PlayerAddedEvent{
 		ID:          "a game+@slackdude",
 		TimeCreated: time.Date(2112, 11, 11, 10, 11, 12, 0, time.UTC),
+		EventType:	 "PlayerAddedEvent",
 		GameID:      "a game",
 		SlackID:     "@slackdude",
 		Name:        "a name",
@@ -20,6 +21,7 @@ func TestNewPlayerAddedEvent(t *testing.T) {
 	actual, err := NewPlayerAddedEvent("a game", "@slackdude", "a name", "my@email.org")
 	require.NoError(t, err, "Positive ctor throws no errors")
 	require.Equal(t, expected.ID, actual.ID)
+	require.Equal(t, expected.EventType, actual.EventType)
 	require.Equal(t, expected.GameID, actual.GameID)
 	require.Equal(t, expected.SlackID, actual.SlackID)
 	require.Equal(t, expected.Name, actual.Name)
@@ -72,8 +74,8 @@ func TestNewPlayerAddedEventMultiple(t *testing.T) {
 			}
 		})
 	}
-
 }
+
 func TestPlayerAddedEvent_GetTimeCreated(t *testing.T) {
 	tests := []struct {
 		name string
@@ -96,4 +98,32 @@ func TestPlayerAddedEvent_GetTimeCreated(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPlayerAddedEvent_Decode(t *testing.T) {
+		original := PlayerAddedEvent {
+			ID:				"testID",
+			TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+			EventType:		"PlayerAddedEvent",
+			GameID:			"Redemption Song",
+			Name:			"Bob Marley",
+			SlackID:		"@wailers",
+			Email:			"wailer@marley.com",
+		}
+		asBytes, err := bson.Marshal(original)
+		require.NoError(t, err, "Failure to marshal test object to bytes: %v", err)
+		asRaw := bson.Raw{}
+		err = bson.Unmarshal(asBytes,&asRaw)
+		require.NoError(t, err, "Failure to unmarshal test object to bson.Raw: %v", err)
+	
+	t.Run("Positive", func(t *testing.T) {
+		actual := &PlayerAddedEvent{}
+		err = actual.Decode(asRaw)
+		require.NoError(t, err, "Failure to Decode BSON: %v", err)
+		require.Equal(t, original.ID, actual.ID)
+		require.Equal(t, original.TimeCreated, actual.TimeCreated)
+		require.Equal(t, original.Name, actual.Name)
+		require.Equal(t, original.SlackID, actual.SlackID)
+		require.Equal(t, original.Email, actual.Email)
+	} )
 }

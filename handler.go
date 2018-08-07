@@ -14,7 +14,7 @@ import (
 type Handler struct {
 	gPool  *types.GamePool
 	pPool  *types.PlayerPool
-	mongo persistence.MongoAbstraction
+	mongo  persistence.MongoAbstraction
 	// other stuff?
 }
 
