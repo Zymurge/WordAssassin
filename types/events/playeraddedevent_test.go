@@ -3,101 +3,74 @@ package events
 import (
 	"testing"
 	"github.com/stretchr/testify/require"
-	"reflect"
+	"bytes"
+	"encoding/binary"
 	"time"
 	bson "github.com/globalsign/mgo/bson"
 )
 
-func TestNewPlayerAddedEvent(t *testing.T) {
-	expected := PlayerAddedEvent{
-		ID:          "a game+@slackdude",
-		TimeCreated: time.Date(2112, 11, 11, 10, 11, 12, 0, time.UTC),
-		EventType:	 "PlayerAddedEvent",
-		GameID:      "a game",
-		SlackID:     "@slackdude",
-		Name:        "a name",
-		Email:       "my@email.org",
-	}
-	actual, err := NewPlayerAddedEvent("a game", "@slackdude", "a name", "my@email.org")
-	require.NoError(t, err, "Positive ctor throws no errors")
-	require.Equal(t, expected.ID, actual.ID)
-	require.Equal(t, expected.EventType, actual.EventType)
-	require.Equal(t, expected.GameID, actual.GameID)
-	require.Equal(t, expected.SlackID, actual.SlackID)
-	require.Equal(t, expected.Name, actual.Name)
-}
-
 func TestNewPlayerAddedEventMultiple(t *testing.T) {
 	tests := []struct {
 		testname string
-		gameid string
-		slackid string
-		name string
-		email string
+		ID string
+		GameID string
+		SlackID string
+		Name string
+		Email string
 		wantErr bool
 		msg string
-		id string
 	}{
 		{
 			"Positive_all",
-			"game1", "@player1", "Joe", "joe@wa.com",
-			false, "", "game1+@player1",
+			"game1+@player1", "game1", "@player1", "Joe", "joe@wa.com",
+			false, "", 
 		},
 		{
 			"Positive_blank_optionals",
-			"game1", "@player1", "", "",
-			false, "", "game1+@player1",
+			"game1+@player1", "game1", "@player1", "", "",
+			false, "", 
 		},
 		{
 			"No gameid",
-			"", "@player1", "Joe", "joe@wa.com",
-			true, "missing GameID", "",
+			"missing GameID", "", "@player1", "Joe", "joe@wa.com",
+			true, "",
 		},
 		{
 			"No slackid",
-			"boo", "", "Joe", "joe@wa.com",
-			true, "missing SlackID", "",
+			"missing SlackID", "boo", "", "Joe", "joe@wa.com",
+			true, "",
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewPlayerAddedEvent(tt.gameid, tt.slackid, tt.name, tt.email)
+		t.Run(tt.testname, func(t *testing.T) {
+			got, err := NewPlayerAddedEvent(tt.GameID, tt.SlackID, tt.Name, tt.Email)
 			if tt.wantErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.msg)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, got.GameID, tt.gameid)
-				require.Equal(t, got.SlackID, tt.slackid)
-				require.Equal(t, got.ID, tt.id)
+				require.Equal(t, tt.ID, got.ID)
+				require.Equal(t, tt.GameID, got.GameID)
+				require.Equal(t, tt.SlackID, got.SlackID)
+				require.Equal(t, "PlayerAddedEvent", got.EventType)
 				require.NotNil(t, got.TimeCreated) // can't match a time now
+				require.Equal(t, tt.Name, got.Name)
+				require.Equal(t, tt.Email, got.Email)
 			}
 		})
 	}
 }
 
 func TestPlayerAddedEvent_GetTimeCreated(t *testing.T) {
-	tests := []struct {
-		name string
-		e    *PlayerAddedEvent
-		want time.Time
-	}{
-		{
-			"test1",
-			&PlayerAddedEvent{
-				TimeCreated: time.Unix(13, 0),
-			},
-			time.Unix(13, 0),
-		},
-		// TODO: Add test cases.
+	target := PlayerAddedEvent {
+		ID:				"time check",
+		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+		EventType:		"PlayerAddedEvent",
+		GameID:			"Time",
+		Name:			"Pink Floyd",
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.e.GetTimeCreated(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PlayerAddedEvent.GetTimeCreated() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	actual := target.GetTimeCreated()
+	require.Equal(t, target.TimeCreated, actual)
 }
 
 func TestPlayerAddedEvent_Decode(t *testing.T) {
@@ -126,4 +99,22 @@ func TestPlayerAddedEvent_Decode(t *testing.T) {
 		require.Equal(t, original.SlackID, actual.SlackID)
 		require.Equal(t, original.Email, actual.Email)
 	} )
+	// reset an expected string type to an int. Expect decode to err on this
+	// doing this via manipulating byte arrays is a bitch!
+	t.Run("Broken Mapping", func(t *testing.T) {
+		badValue := new(bytes.Buffer)
+		err := binary.Write(badValue, binary.LittleEndian, int32(13))
+		require.NoError(t, err, "Failure to create byte array for bad value %v", err)
+		// leverage the clean byte array from setup to make a copy with the bad value and then create a new bson.Raw from it
+		brokenBytes := bytes.Replace(asBytes, []byte(`PlayerAddedEvent`), badValue.Bytes(), 1)
+		brokenRaw := bson.Raw{}
+		err = bson.Unmarshal(brokenBytes, &brokenRaw)
+		require.NoError(t, err, "Failure to unmarshal test object to bson.Raw: %v", err)
+
+		actual := &PlayerAddedEvent{}
+		err = actual.Decode(brokenRaw)
+		require.Error(t, err, "Bad mapping should throw an error")
+		// error message from unmarshall is "Document is corrupted" -- passing that through is good enough for now
+		require.Contains(t, err.Error(), "corrupted", "Error message should indicate problem with casting")
+	})
 }
