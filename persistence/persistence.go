@@ -22,7 +22,7 @@ type MongoAbstraction interface {
 	ConnectToMongo() error
 	WriteCollection(collectionName string, object Persistable) error
 	UpdateCollection(collectionName string, object Persistable) error
-	FetchFromCollection(collectionName string, id string, object Persistable) error
+	FetchOneFromCollection(collectionName string, id string, object Persistable) error
 	DeleteFromCollection(collectionName string, id string) error
 }
 
@@ -106,10 +106,10 @@ func (ms *MongoSession) UpdateCollection(collName string, obj Persistable) error
 	return myCollection.UpdateId(id, obj)
 }
 
-// FetchFromCollection fetches the Persistable by ID from the specified collection
-func (ms *MongoSession) FetchFromCollection(coll string, id string, result Persistable) (err error) {
+// FetchOneFromCollection fetches the Persistable by ID from the specified collection
+func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Persistable) (err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
-		ms.logger.Printf("FetchFromCollection: could not establish mongo connection: %s", err)
+		ms.logger.Printf("FetchOneFromCollection: could not establish mongo connection: %s", err)
 		return
 	}
 	myCollection := ms.db.C(coll)
@@ -120,6 +120,18 @@ func (ms *MongoSession) FetchFromCollection(coll string, id string, result Persi
 		return
 	}
 	return result.Decode(queryResult)
+}
+
+// FetchAllFromCollection fetches all the Persistables from the specified collection
+func (ms *MongoSession) FetchAllFromCollection(coll string) (result []bson.Raw, err error) {
+	if err = ms.CheckAndReconnect(); err != nil {
+		ms.logger.Printf("FetchAllFromCollection: could not establish mongo connection: %s", err)
+		return
+	}
+	myCollection := ms.db.C(coll)
+	q := myCollection.Find(bson.D{{}})
+	err = q.All(&result)
+	return
 }
 
 /*  Possible trick for reflect to proper type

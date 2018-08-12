@@ -180,7 +180,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		err = testMS.UpdateCollection(TestCollection, updateEvent)
 		require.NoError(t, err, "Successful update throws no error. Instead we got %s", err)
 		actual := &testGenericPersistable{}
-		if err := testMS.FetchFromCollection(TestCollection, updateEvent.GetID(), actual); err != nil {
+		if err := testMS.FetchOneFromCollection(TestCollection, updateEvent.GetID(), actual); err != nil {
 			require.NoError(t, err, "Failed to fetch result: %s", err.Error())
 		}
 		require.Equal(t, expected, actual.Name)
@@ -221,7 +221,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 	})
 }
 
-func (m *MongoSessionSuite) TestFetchFromCollection() {
+func (m *MongoSessionSuite) TestFetchOneFromCollection() {
 	var err error
 	testEvent := testGenericPersistable{
 		ID:          "31",
@@ -235,7 +235,7 @@ func (m *MongoSessionSuite) TestFetchFromCollection() {
 
 	m.T().Run("Positive", func(t *testing.T) {
 		result := &testGenericPersistable{}
-		err = testMS.FetchFromCollection(TestCollection, testEvent.GetID(), result)
+		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), result)
 		require.NoError(t, err, "Successful lookup throws no error. Instead we got %s", err)
 		require.NotNil(t, result, "Successful lookup has to actually return something")
 		require.Equal(t, testEvent.GetID(), result.GetID())
@@ -245,7 +245,7 @@ func (m *MongoSessionSuite) TestFetchFromCollection() {
 	m.T().Run("Missing ID", func(t *testing.T) {
 		var result Persistable
 		badID := "I an I bad, mon"
-		err = testMS.FetchFromCollection(TestCollection, badID, result)
+		err = testMS.FetchOneFromCollection(TestCollection, badID, result)
 		require.Error(t, err, "Missing id should throw an error")
 		require.Contains(t, err.Error(), "not found", "Message should give a clue. Instead it is %s", err)
 	})
@@ -253,11 +253,46 @@ func (m *MongoSessionSuite) TestFetchFromCollection() {
 		var result Persistable
 		testMS, logBuf := GetMongoSessionWithLogger()
 		testMS.mongoURL = "yo"
-		err = testMS.FetchFromCollection(TestCollection, testEvent.GetID(), result)
+		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), result)
 		require.Error(t, err, "Should get an error if changed to unreachable URL")
 		require.Contains(t, err.Error(), "no reachable servers", "Should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "no reachable servers", "Log message should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "FetchFromCollection", "Log message should inform on source of issue")
+		require.Contains(t, logBuf.String(), "FetchOneFromCollection", "Log message should inform on source of issue")
+	})
+}
+
+func (m *MongoSessionSuite) TestFetchAllFromCollection() {
+	// Shared setup to populate a set of persistables
+	var err error
+	testEvents := []testGenericPersistable {
+		{
+			ID:          "31",
+			Name:        "Barney",
+			TimeCreated: time.Unix(63667135112, 0).UTC(),
+		},
+		{
+			ID:          "41",
+			Name:        "Betty",
+			TimeCreated: time.Unix(63667135112, 0).UTC(),
+		},
+		{
+			ID:          "51",
+			Name:        "Bam Bam",
+			TimeCreated: time.Unix(63667135112, 0).UTC(),
+		},
+	}
+	for _,v := range testEvents {
+		err = AddToMongoCollection(m.T(), m.session, TestCollection, v)
+		require.NoError(m.T(), err, "Test failed in setup adding to collection. Err: %s", err)
+	}
+	testMS := NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
+
+	m.T().Run("Positive", func(t *testing.T) {
+		results := []bson.Raw{}
+		results, err = testMS.FetchAllFromCollection(TestCollection)
+		require.NoError(t, err, "Successful lookup throws no error. Instead we got %s", err)
+		require.NotNil(t, results, "Successful lookup has to actually return something")
+		require.Equal(t, len(testEvents), len(results))
 	})
 }
 
