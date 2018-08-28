@@ -30,6 +30,10 @@ var (
 	handler  Handler
 )
 
+func getGamesList(c echo.Context) error {
+	return c.HTML(http.StatusOK, handler.GetGamesList())
+}
+
 func getGameStatus(c echo.Context) error {
 	gameid := c.Param("gameid")
 	if message, exists := handler.GetGameStatus(gameid); exists {
@@ -100,6 +104,7 @@ func main() {
 	e.GET("/", healthCheck)
 	e.GET("/health", healthCheck)
 	e.GET("/gamestatus/:gameid", getGameStatus)
+	e.GET("/gameslist", getGamesList)
 	e.POST("/creategame/:gameid/:creator", createGame)
 	e.POST("/addplayer/:gameid/:slackid", addPlayer)
 

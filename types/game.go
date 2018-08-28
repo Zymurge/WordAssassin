@@ -1,6 +1,7 @@
 package types
 
 import (
+	"sort"
 	"fmt"
 	"time"
 
@@ -8,7 +9,7 @@ import (
 )
 
 // GameStatus allows management of game state
-type GameStatus int
+type GameStatus string
 
 // Game - The elements necessary to track a single game of wordassassin.
 type Game struct {
@@ -28,10 +29,10 @@ type Game struct {
 
 // Constants for GameStatus
 const (
-	Starting GameStatus = iota + 1
-	Playing
-	Finished
-	Aborted
+	Starting GameStatus = "starting"
+	Playing  GameStatus = "playing"
+	Finished GameStatus = "finished"
+	Aborted  GameStatus = "aborted"
 )
 
 // NewGameFromEvent instantiates a Player from a PlayerAdedEvent
@@ -55,7 +56,7 @@ func (g *Game) GetID() string {
 // GetStatus translates the status enum
 func (g *Game) GetStatus() string {
 	// TODO: map to string values of enum
-	return fmt.Sprintf("Status lookup for %d", g.Status)
+	return string(g.Status)
 }
 
 // GetStatusReport generates a status report for this game instance
@@ -106,5 +107,18 @@ func (pool *GamePool) AddGame(game *Game) error {
 // -- true for exists if it does, false if it don't
 func (pool *GamePool) GetGame(id string) (result *Game, exists bool) {
 	result, exists = pool.games[id]
+	return
+}
+
+// GetGamesList gives a list of each game ID separated by a newline. The result are sorted chronologically by created time
+func (pool *GamePool) GetGamesList() (result []*Game) {
+	///result := []*Game{}
+	for _,v := range pool.games {
+		result = append(result, v)
+	}
+	sort.SliceStable(result, 
+		func(i, j int) bool { 
+			return result[i].TimeCreated.Before(result[j].TimeCreated) } )
+		//	return result[i].GameCreator < result[j].GameCreator } )
 	return
 }

@@ -12,9 +12,9 @@ import (
 // Handler contains the context necessary to process events and put everything where it belongs. Needs to be aware
 // of persistence, the game pool, the player pool, etc
 type Handler struct {
-	gPool  *types.GamePool
-	pPool  *types.PlayerPool
-	mongo  persistence.MongoAbstraction
+	gPool *types.GamePool
+	pPool *types.PlayerPool
+	mongo persistence.MongoAbstraction
 	// other stuff?
 }
 
@@ -37,7 +37,7 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 	// Create and persist the event to request a new game
 	var ev events.GameCreatedEvent
 	if ev, err = events.NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
-		 return
+		return
 	}
 	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle a dup write with more graceful wording for downstream consumers
@@ -86,7 +86,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	// Create and persist and event, unless it's a dupe. Rely on PlayerAddEvent ctor to validate inputs
 	var ev events.PlayerAddedEvent
 	if ev, err = events.NewPlayerAddedEvent(gameid, slackid, name, email); err != nil {
-		 return
+		return
 	}
 	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle a dup write with more graceful wording for downstream consumers
@@ -122,5 +122,15 @@ func (h *Handler) GetGameStatus(gameid string) (result string, exists bool) {
 		return
 	}
 	result = game.GetStatusReport()
+	return
+}
+
+// GetGamesList provides a listing of all of the games in the GamePool
+func (h *Handler) GetGamesList() (result string) {
+	result = "<h2>Games List</h2>\n"
+	games := h.gPool.GetGamesList()
+	for _, v := range games {
+		result += "   " + v.GetID() + ": " + v.GetStatus() + "<p>\n"
+	}
 	return
 }
