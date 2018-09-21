@@ -15,6 +15,7 @@ import (
 
 	bson "github.com/mongodb/mongo-go-driver/bson"
 	mongo "github.com/mongodb/mongo-go-driver/mongo"
+	clientopt "github.com/mongodb/mongo-go-driver/mongo/clientopt"
 )
 
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
@@ -72,25 +73,29 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 	if err != nil {
 		return
 	}
-	ms.session, err = mongo.NewClientFromConnString(ms.connStr)
+/* 	ms.session, err = mongo.NewClientFromConnString(ms.connStr)
 	if err != nil {
 		return
 	}
-	ms.db = ms.session.Database(ms.dbName)
-
+ 	ms.db = ms.session.Database(ms.dbName)
+*/
 	return
 }
 
 // ConnectToMongo creates a connection to the specified mongodb instance
 func (ms *MongoSession) ConnectToMongo() (err error) {
-	//	ms.session, err = mgo.DialWithTimeout(ms.mongoURL, ms.timeoutSeconds)
-	err = ms.session.Connect(context.Background()) // TODO: pass in timeout as option
+	ms.session, err = mongo.Connect(context.Background(), ms.mongoURL, clientopt.ConnectTimeout(ms.timeoutSeconds))
+ 	if err != nil { return }
+	ms.db = ms.session.Database(ms.dbName)
+	// if n, checkErr := ms.session.ListDatabaseNames( context.Background(),nil); checkErr != nil {
+	//  	err = fmt.Errorf("Validation of connection failed: %s ... And there are %d DBs not there", checkErr.Error(), len(n))
+	// }
 	return
 }
 
 // CheckAndReconnect ensures that there is an active DB connection to mongo. Attempts to reestablish connection if needed
 func (ms *MongoSession) CheckAndReconnect() (err error) {
-	if ms.db == nil {
+	if ms.session == nil {
 		err = ms.ConnectToMongo()
 	}
 	return
@@ -160,6 +165,7 @@ func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Pe
 		),
 	).Decode(queryResult)
 	if err != nil {
+		ms.logger.Printf("FetchOneFromCollection: %s on update attempt for %s", err.Error(), id)
 		return
 	}
 	var bytes []byte 
