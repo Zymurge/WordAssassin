@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"fmt"
 	"bytes"
 //	"fmt"
 	"context"
@@ -126,6 +127,7 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	// })
 }
 
+// NOTE: FIXED
 func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	var err error
 	var testMS *MongoSession
@@ -143,32 +145,40 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 
 		err = testMS.DeleteFromCollection(TestCollection, testEvent.GetID())
 		require.NoError(t, err, "Successful deletions throw no errors. But this threw: %s", err)
+		// validate that it's actually deleted now
+		actual := &testGenericPersistable{}
+		// TODO: fix fetchone for more complete mesaging
+		// expectedMsg := fmt.Sprintf("no documents for id=%s", testEvent.GetID())
+		expectedMsg := fmt.Sprintf("no documents")
+		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), actual)
+		require.Error(t, err, "A deleted id should throw an error on fetch")
+		require.Contains(t, err.Error(), expectedMsg, "The error should be a 'not found' message. Instead it is %s", err)
 	})
 	m.T().Run("Missing ID", func(t *testing.T) {
 		testID := "I don't exist"
+		expectedMsg := fmt.Sprintf("no documents for id=%s", testID)
 
 		err = testMS.DeleteFromCollection(TestCollection, testID)
 		require.Error(t, err, "Delete on missing ID should throw error")
-		require.Containsf(t, err.Error(), "not found", "mgo should specify why it threw on missing ID")
+		require.Containsf(t, err.Error(), expectedMsg, "should specify why it threw on missing ID")
 	})
 	m.T().Run("CollectionNotExist", func(t *testing.T) {
+		testID := "it matters not"
+		expectedMsg := fmt.Sprintf("no documents for id=%s", testID)
 		testBadCollection := "garbage"
-		err = testMS.DeleteFromCollection(testBadCollection, "it matters not")
+		err = testMS.DeleteFromCollection(testBadCollection, testID)
 		require.Error(t, err, "Should get error message when attempt to access non-existent collection")
-		require.Contains(t, err.Error(), "not found", "Looking for the not found phrase, but got: %s", err)
+		require.Contains(t, err.Error(), expectedMsg, "Looking for the not found phrase, but got: %s", err)
 	})
-	// m.T().Run("Dropped connection", func(t *testing.T) {
-	// 	// create local override of session
-	// 	testMS, err := NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
-	// 	require.NoError(t, err, "Test failed in creating MongoSession. Err: %s", err)
-	// 	err = testMS.session.Disconnect(context.TODO())
-	// 	require.NoError(t, err, "Test failed in disconnecting MongoSession. Err: %s", err)
-	// 	err = testMS.DeleteFromCollection(TestCollection, "it matters not")
-	// 	require.Error(t, err, "Should get an error if changed to unreachable URL")
-	// 	require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
-	// 	//require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
-	// 	//require.Contains(t, logBuf.String(), "DeleteFromCollection", "Log message should inform on source of issue")
-	// })
+	m.T().Run("Dropped connection", func(t *testing.T) {
+		brokenSession, logBuf := GetMongoSessionWithLogger(t)
+		err = brokenSession.session.Disconnect(context.Background())
+		err = brokenSession.DeleteFromCollection(TestCollection, "any ID will do")
+		require.Error(t, err, "Should get an error if changed to unreachable URL")
+		require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "DeleteFromCollection", "Log message should inform on source of issue")
+	})
 }
 
 // NOTE: All func tests working. Use setup as model.
@@ -181,7 +191,6 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		TimeCreated: time.Unix(63667134985, 13).UTC(),
 		Name:        "@wilma.f",
 	}
-	// Shared setup
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
 

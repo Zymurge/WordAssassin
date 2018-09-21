@@ -151,6 +151,7 @@ func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err erro
 }
 
 // FetchOneFromCollection fetches the Persistable by ID from the specified collection
+// If the ID is not found, returns an error containing the message "no documents"
 func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Persistable) (err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("FetchOneFromCollection: could not establish mongo connection: %s", err)
@@ -165,7 +166,7 @@ func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Pe
 		),
 	).Decode(queryResult)
 	if err != nil {
-		ms.logger.Printf("FetchOneFromCollection: %s on update attempt for %s", err.Error(), id)
+		ms.logger.Printf("FetchOneFromCollection: %s on Decode attempt for %s", err.Error(), id)
 		return
 	}
 	var bytes []byte 
@@ -208,8 +209,8 @@ func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error)
 	if err != nil {
 		ms.logger.Printf("DeleteFromCollection: no mongo connection: %s", err)
 	} else if dResult.DeletedCount == 0 {
-		err = fmt.Errorf("Delete failed. %s not found in collection %s", id, coll)
-		ms.logger.Printf("DeleteFromCollection: %s not found in collection %s", id, coll)
+		err = fmt.Errorf("Delete failed: no documents for id=%s in collection %s", id, coll)
+		ms.logger.Printf("DeleteFromCollection: no documents for id=%s in collection %s", id, coll)
 	}
 	return
 }
