@@ -3,18 +3,17 @@ package persistence
 import (
 	"fmt"
 	"bytes"
-//	"fmt"
 	"context"
 	"log"
 	"encoding/json"
 	"os"
-	"testing"
 	"time"
+	"testing"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	mgo "github.com/globalsign/mgo"
 	bson "github.com/globalsign/mgo/bson"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -81,6 +80,7 @@ func (m *MongoSessionSuite) TestConnectToMongo() {
 // }
 */
 
+// NOTE: FIXED
 func (m *MongoSessionSuite) TestWriteCollection() {
 	var err error
 	var testMS *MongoSession
@@ -90,12 +90,14 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
-	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		err = testMS.WriteCollection(TestCollection, testEvent)
 		require.NoError(t, err, "Successful write throws no error. Instead we got %s", err)
+
+		actual := &testGenericPersistable{}
+		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), actual)
+		require.NoError(t, err, "Failed to validate write for id=%s", testEvent.GetID())
 	})
 	m.T().Run("DuplicateInsertShouldError", func(t *testing.T) {
 		dupTestEvent := testEvent
@@ -116,15 +118,15 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 		writeCount, _ := m.session.DB(TestDbName).C(testBadCollection).Count()
 		require.True(t, writeCount == 1, "Record should have been written as only entry")
 	})
-	// m.T().Run("Dropped connection", func(t *testing.T) {
-	// 	testMS, logBuf := GetMongoSessionWithLogger()
-	// 	err = testMS.session.Disconnect(context.Background())
-	// 	err = testMS.DeleteFromCollection(TestCollection, "it matters not")
-	// 	require.Error(t, err, "Should get an error if changed to unreachable URL")
-	// 	require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
-	// 	require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
-	// 	require.Contains(t, logBuf.String(), "DeleteFromCollection", "Log message should inform on source of issue")
-	// })
+	m.T().Run("Dropped connection", func(t *testing.T) {
+		brokenSession, logBuf := GetMongoSessionWithLogger(t)
+		err = brokenSession.session.Disconnect(context.Background())
+		err = brokenSession.WriteCollection(TestCollection, testEvent)
+		require.Error(t, err, "Should get an error if changed to unreachable URL")
+		require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), "WriteCollection", "Log message should inform on source of issue")
+	})
 }
 
 // NOTE: FIXED

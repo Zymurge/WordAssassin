@@ -102,27 +102,34 @@ func (ms *MongoSession) CheckAndReconnect() (err error) {
 }
 
 // WriteCollection writes the specified Persistable object to a given collection
-func (ms *MongoSession) WriteCollection(coll string, obj Persistable) error {
-	if err := ms.CheckAndReconnect(); err != nil {
+func (ms *MongoSession) WriteCollection(coll string, obj Persistable) (err error) {
+	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("WriteCollection: could not establish mongo connection: %s", err)
-		return err
+		return
 	}
+
 	myCollection := ms.db.Collection(coll)
-	_, err := myCollection.InsertOne(context.Background(), obj)
-	return err
+	var wResult *mongo.InsertOneResult
+	wResult, err = myCollection.InsertOne(context.Background(), obj)
+	if err != nil {
+		err = fmt.Errorf("Write failed. topology is closed on insert: %s", err)
+		ms.logger.Printf("WriteCollection: topology is closed on insert attempt for %s", obj.GetID())
+	} else if wResult.InsertedID == nil {
+		err = fmt.Errorf("Write failed. %s not inserted in collection %s", obj.GetID(), coll)
+		ms.logger.Printf("WriteCollection: %s not inserted in collection %s", obj.GetID(), coll)
+	}
+
+	return
 }
 
 // UpdateCollection updates the Persistable object in the specified collection with a matching _id element to the passed in object
+// If the ID is not found, logs and then returns an error containing the message "no documents"
 func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("UpdateCollection: could not establish mongo connection: %s", err)
 		return
 	}
-	/*	if !ms.collectionExists(coll) {
-			ms.logger.Printf("UpdateCollection: missing collection: %s", coll)
-			return fmt.Errorf("missing collection: %s", coll)
-		}
-	*/
+
 	myCollection := ms.db.Collection(coll)
 	var uResult *mongo.UpdateResult
 	var updateDoc *bson.Document
@@ -147,16 +154,18 @@ func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err erro
 		err = fmt.Errorf("Update failed. %s not found in collection %s", obj.GetID(), coll)
 		ms.logger.Printf("UpdateCollection: %s not found in collection %s", obj.GetID(), coll)
 	}
+
 	return
 }
 
 // FetchOneFromCollection fetches the Persistable by ID from the specified collection
-// If the ID is not found, returns an error containing the message "no documents"
+// If the ID is not found, logs and then returns an error containing the message "no documents"
 func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Persistable) (err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("FetchOneFromCollection: could not establish mongo connection: %s", err)
 		return
 	}
+
 	myCollection := ms.db.Collection(coll)
 	queryResult := bson.NewDocument()
 	err = myCollection.FindOne(
@@ -193,11 +202,13 @@ func (ms *MongoSession) FetchAllFromCollection(coll string) (result []bson.Raw, 
 */
 
 // DeleteFromCollection removes the Loc by ID from the specified collection
+// If the ID is not found, logs and then returns an error containing the message "no documents"
 func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("DeleteFromCollection: could not establish mongo connection: %s", err)
 		return
 	}
+
 	myCollection := ms.db.Collection(coll)
 	var dResult *mongo.DeleteResult
 	dResult, err = myCollection.DeleteOne(
@@ -212,6 +223,7 @@ func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error)
 		err = fmt.Errorf("Delete failed: no documents for id=%s in collection %s", id, coll)
 		ms.logger.Printf("DeleteFromCollection: no documents for id=%s in collection %s", id, coll)
 	}
+
 	return
 }
 
