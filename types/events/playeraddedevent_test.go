@@ -85,13 +85,10 @@ func TestPlayerAddedEvent_Decode(t *testing.T) {
 		}
 		asBytes, err := bson.Marshal(original)
 		require.NoError(t, err, "Failure to marshal test object to bytes: %v", err)
-		asRaw := bson.Raw{}
-		err = bson.Unmarshal(asBytes,&asRaw)
-		require.NoError(t, err, "Failure to unmarshal test object to bson.Raw: %v", err)
 	
 	t.Run("Positive", func(t *testing.T) {
 		actual := &PlayerAddedEvent{}
-		err = actual.Decode(asRaw)
+		err = actual.Decode(asBytes)
 		require.NoError(t, err, "Failure to Decode BSON: %v", err)
 		require.Equal(t, original.ID, actual.ID)
 		require.Equal(t, original.TimeCreated, actual.TimeCreated)
@@ -105,16 +102,12 @@ func TestPlayerAddedEvent_Decode(t *testing.T) {
 		badValue := new(bytes.Buffer)
 		err := binary.Write(badValue, binary.LittleEndian, int32(13))
 		require.NoError(t, err, "Failure to create byte array for bad value %v", err)
-		// leverage the clean byte array from setup to make a copy with the bad value and then create a new bson.Raw from it
+		// leverage the clean byte array from setup to make a copy with the bad value
 		brokenBytes := bytes.Replace(asBytes, []byte(`PlayerAddedEvent`), badValue.Bytes(), 1)
-		brokenRaw := bson.Raw{}
-		err = bson.Unmarshal(brokenBytes, &brokenRaw)
-		require.NoError(t, err, "Failure to unmarshal test object to bson.Raw: %v", err)
 
 		actual := &PlayerAddedEvent{}
-		err = actual.Decode(brokenRaw)
+		err = actual.Decode(brokenBytes)
 		require.Error(t, err, "Bad mapping should throw an error")
-		// error message from unmarshall is "Document is corrupted" -- passing that through is good enough for now
 		require.Contains(t, err.Error(), "corrupted", "Error message should indicate problem with casting")
 	})
 }
