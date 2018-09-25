@@ -22,7 +22,7 @@ import (
 type Persistable interface {
 	GetID() string
 	Decode([]byte) error
-	ToJSON() []byte
+//	ToJSON() []byte
 }
 
 // MongoAbstraction defines the set of DAL functions for accessing this Mongo collection

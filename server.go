@@ -76,6 +76,7 @@ func healthCheck(c echo.Context) error {
 }
 
 func main() {
+	var err error
 	logger = log.New(os.Stderr, "WordAssassin: ", log.Ldate|log.Ltime)
 	// Port from env or default
 	if port = os.Getenv(serverPortEnvName); port == "" {
@@ -87,7 +88,8 @@ func main() {
 	if mongoURL = os.Getenv(mongoURLEnvName); mongoURL == "" {
 		logger.Fatalf("Can't find Mongo URL env variable: %s", mongoURLEnvName)
 	}
-	mongo = dao.NewMongoSession(mongoURL, mongoDB, logger)
+	mongo, err = dao.NewMongoSession(mongoURL, mongoDB, logger)
+	if err != nil { log.Panicf("NewMongoSession: %s", err)}
 
 	players = types.PlayerPool{}
 	games = types.GamePool{}

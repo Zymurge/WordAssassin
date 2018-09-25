@@ -50,8 +50,8 @@ func (e *GameCreatedEvent) GetTimeCreated() time.Time {
 }
 
  // Decode populates this instance from the supplied bson
-func (e *GameCreatedEvent) Decode(raw bson.Raw) error {
-	if err := raw.Unmarshal(e); err != nil {
+func (e *GameCreatedEvent) Decode(raw []byte) error {
+	if err := bson.Unmarshal(raw, e); err != nil {
 		return err
 	}
 	return nil
