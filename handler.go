@@ -40,12 +40,12 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 		return
 	}
 	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
-		// Want to handle a dup write with more graceful wording for downstream consumers
+		// Want to handle errors with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
 			err = fmt.Errorf("Game %s already created", gameid)
-			return
+		} else {
+			err = fmt.Errorf("Mongodb issue on GameCreated event write: %s", mongoerr.Error())
 		}
-		err = fmt.Errorf("Mongodb issue on GameCreated event write: %s", mongoerr.Error())
 		return
 	}
 
