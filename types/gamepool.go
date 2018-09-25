@@ -1,8 +1,8 @@
 package types
 
 import (
-	"sort"
 	"fmt"
+	"sort"
 )
 
 // GamePool manages the collection of games in a running server
@@ -23,6 +23,8 @@ func (pool *GamePool) AddGame(game *Game) error {
 		return fmt.Errorf("duplicate ID on add: %s", game.GetID())
 	}
 	pool.games[game.GetID()] = game
+
+	// TODO: Persist to mongo
 	return nil
 }
 
@@ -40,10 +42,11 @@ func (pool *GamePool) GetGamesList() (result []*Game) {
 	for _, v := range pool.games {
 		result = append(result, v)
 	}
-	sort.SliceStable(result, 
-		func(i, j int) bool { 
-			return result[i].TimeCreated.Before(result[j].TimeCreated) } )
-		//	return result[i].GameCreator < result[j].GameCreator } )
+	sort.SliceStable(result,
+		func(i, j int) bool {
+			return result[i].TimeCreated.Before(result[j].TimeCreated)
+		})
+	//	return result[i].GameCreator < result[j].GameCreator } )
 	return
 }
 

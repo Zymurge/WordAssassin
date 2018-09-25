@@ -1,19 +1,19 @@
 package persistence
 
 import (
-	"fmt"
 	"bytes"
 	"context"
-	"log"
 	"encoding/json"
+	"fmt"
+	"log"
 	"os"
-	"time"
 	"testing"
+	"time"
+
+	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	mgo "github.com/globalsign/mgo"
-	bson "github.com/globalsign/mgo/bson"
 )
 
 const (

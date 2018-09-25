@@ -1,21 +1,17 @@
 package persistence
 
 import (
+	"strings"
 	"fmt"
 	"log"
 	"os"
 	"time"
-
-	"github.com/mongodb/mongo-go-driver/core/connstring"
-	//"crypto/tls"
-
-	//	mgo "github.com/globalsign/mgo"
-	//	bson "github.com/globalsign/mgo/bson"
 	"context"
 
-	bson "github.com/mongodb/mongo-go-driver/bson"
-	mongo "github.com/mongodb/mongo-go-driver/mongo"
-	clientopt "github.com/mongodb/mongo-go-driver/mongo/clientopt"
+	"github.com/mongodb/mongo-go-driver/core/connstring"
+	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/mongo"
+	"github.com/mongodb/mongo-go-driver/mongo/clientopt"
 )
 
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
@@ -52,7 +48,7 @@ const (
 )
 
 // NewMongoSession is a factory method to create a fresh MongoSession for a given connection string and DB
-// toDuration should be expressed as a multiple of time.Second
+// overrideTo should be expressed as a multiple of time.Second
 func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrideTo ...int64) (ms *MongoSession, err error) {
 	ms = &MongoSession{
 		mongoURL:       mongoURL,
@@ -73,12 +69,6 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 	if err != nil {
 		return
 	}
-/* 	ms.session, err = mongo.NewClientFromConnString(ms.connStr)
-	if err != nil {
-		return
-	}
- 	ms.db = ms.session.Database(ms.dbName)
-*/
 	return
 }
 
@@ -109,11 +99,15 @@ func (ms *MongoSession) WriteCollection(coll string, obj Persistable) (err error
 	}
 
 	myCollection := ms.db.Collection(coll)
-	var wResult *mongo.InsertOneResult
-	wResult, err = myCollection.InsertOne(context.Background(), obj)
-	if err != nil {
-		err = fmt.Errorf("Write failed. topology is closed on insert: %s", err)
-		ms.logger.Printf("WriteCollection: topology is closed on insert attempt for %s", obj.GetID())
+	wResult, insErr := myCollection.InsertOne(context.Background(), obj)
+	if insErr != nil {
+		if strings.Contains(insErr.Error(), "duplicate") {
+			err = fmt.Errorf("Write failed: duplicate key on insert for %s", obj.GetID())
+			ms.logger.Printf("WriteCollection: duplicate key on insert for %s", obj.GetID())
+		} else {
+			err = fmt.Errorf("Write failed. topology is closed on insert: %s", err)
+			ms.logger.Printf("WriteCollection: topology is closed on insert attempt for %s", obj.GetID())
+		}
 	} else if wResult.InsertedID == nil {
 		err = fmt.Errorf("Write failed. %s not inserted in collection %s", obj.GetID(), coll)
 		ms.logger.Printf("WriteCollection: %s not inserted in collection %s", obj.GetID(), coll)
