@@ -1,10 +1,10 @@
 package types
 
 import (
-	"sort"
 	"fmt"
 	"time"
-
+	
+	"gopkg.in/mgo.v2/bson"
 	events "wordassassin/types/events"
 )
 
@@ -44,8 +44,17 @@ func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
 		KillDictionary: ev.KillDictionary,
 		Passcode:       ev.Passcode,
 		Status:         Starting,
+		StartTime:		time.Unix(0, 0),
 	}
 	return
+}
+
+// Decode populates this instance from the supplied bson
+func (g *Game) Decode(raw []byte) error {
+	if err := bson.Unmarshal(raw, g); err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetID getter for ID field
@@ -76,49 +85,4 @@ func (g *Game) Start() error {
 	// Assign first round of targets
 	// Log what you gotta log
 	return fmt.Errorf("Not implemented")
-}
-
-/*** End Game ***/
-
-// GamePool manages the collection of games in a running server
-type GamePool struct {
-	games map[string]*Game
-}
-
-// AddGame adds a game to this pool. Enforces uniqueness of the Game.ID within the pool
-func (pool *GamePool) AddGame(game *Game) error {
-	// create the players map as a singleton
-	if pool.games == nil {
-		pool.games = make(map[string]*Game, 10)
-	}
-	if game.GetID() == "" {
-		return fmt.Errorf("missing ID for AddGame")
-	}
-	if _, exists := pool.games[game.GetID()]; exists {
-		return fmt.Errorf("duplicate ID on add: %s", game.GetID())
-	}
-	pool.games[game.GetID()] = game
-	return nil
-}
-
-// GetGame gets the game specified by the requested ID.
-// Returns:
-// -- the game object for that ID
-// -- true for exists if it does, false if it don't
-func (pool *GamePool) GetGame(id string) (result *Game, exists bool) {
-	result, exists = pool.games[id]
-	return
-}
-
-// GetGamesList gives a list of each game ID separated by a newline. The result are sorted chronologically by created time
-func (pool *GamePool) GetGamesList() (result []*Game) {
-	///result := []*Game{}
-	for _,v := range pool.games {
-		result = append(result, v)
-	}
-	sort.SliceStable(result, 
-		func(i, j int) bool { 
-			return result[i].TimeCreated.Before(result[j].TimeCreated) } )
-		//	return result[i].GameCreator < result[j].GameCreator } )
-	return
 }

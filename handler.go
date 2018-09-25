@@ -79,7 +79,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		return
 	}
 	if game.Status != types.Starting {
-		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%d", gameid, game.Status)
+		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
 		return
 	}
 
@@ -112,6 +112,8 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	}
 	// Persist the pPool, or should it auto persist on state change?
 
+	// I guess it makes sense to increment the game player count at this point.
+	game.StartPlayers++
 	return nil
 }
 

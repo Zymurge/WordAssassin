@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	bson "github.com/globalsign/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // PlayerAddedEvent is created for each time a player is added to the game
@@ -51,7 +51,7 @@ func (e *PlayerAddedEvent) GetTimeCreated() time.Time {
 	return e.TimeCreated
 }
 
- // Decode populates this instance from the supplied bson
+// Decode populates this instance from the supplied bson
 func (e *PlayerAddedEvent) Decode(raw []byte) error {
 	if err := bson.Unmarshal(raw, e); err != nil {
 		return err

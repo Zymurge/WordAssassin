@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	bson "github.com/globalsign/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TestNewPlayerAddedEventMultiple(t *testing.T) {
@@ -76,7 +76,7 @@ func TestPlayerAddedEvent_GetTimeCreated(t *testing.T) {
 func TestPlayerAddedEvent_Decode(t *testing.T) {
 		original := PlayerAddedEvent {
 			ID:				"testID",
-			TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+			TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.Local),
 			EventType:		"PlayerAddedEvent",
 			GameID:			"Redemption Song",
 			Name:			"Bob Marley",

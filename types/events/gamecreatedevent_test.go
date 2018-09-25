@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	bson "github.com/globalsign/mgo/bson"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TestNewGameCreatedEventMultiple(t *testing.T) {
@@ -62,7 +62,7 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 func TestGameCreatedEvent_GetTimeCreated(t *testing.T) {
 	target := GameCreatedEvent {
 		ID:				"time check",
-		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.Local),
 		EventType:      "GameCreatedEvent",
 		GameCreator:    "@Bob_Marley",
 		KillDictionary: "websters",
@@ -75,7 +75,7 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 	// Setup
 	original := GameCreatedEvent{
 		ID:             "testID",
-		TimeCreated:    time.Date(2112, time.November, 13, 16, 20, 0, 0, time.UTC),
+		TimeCreated:    time.Date(2112, time.November, 13, 16, 20, 0, 0, time.Local),
 		EventType:      "GameCreatedEvent",
 		GameCreator:    "@Bob_Marley",
 		KillDictionary: "websters",

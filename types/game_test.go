@@ -1,51 +1,57 @@
 package types
 
 import (
-	"testing"
 	"github.com/stretchr/testify/require"
+	"testing"
 	"time"
 
 	events "wordassassin/types/events"
 )
 
-func TestGetGame(t *testing.T) {
-	// Setup
-	target := GamePool{}
-	require.NotNil(t, target)
-	AddGameToPool(t, &target, "g1", "some test code", "a file somewhere", "pass" )
-	AddGameToPool(t, &target, "g2", "that same code", "a file somewhere else", "pass" )
-	actual, ok := target.GetGame("g2")
-	require.True(t, ok, "An existing game should say it was fetched")
-	require.NotNil(t, actual, "An existing game should have actually been fetched")
-	require.Equal(t, "g2", actual.ID )
-	require.Equal(t, "that same code", actual.GameCreator )
+func TestNewGameFromEvent(t *testing.T) {
+	ev, err := events.NewGameCreatedEvent( "bigape", "@King.Kong", "bananas.txt", "Jane")
+	require.NoError(t, err, "Gotta get the game event built first")
+
+	actual := NewGameFromEvent(ev)
+	require.NotNil(t, actual, "Failed to instantiate")
+	require.Equal(t, ev.GetID(), actual.ID)
+	require.Equal(t, ev.GetTimeCreated(), actual.TimeCreated)
+	require.Equal(t, ev.GameCreator, actual.GameCreator)
+	require.Equal(t, ev.KillDictionary, actual.KillDictionary)
+	require.Equal(t, ev.Passcode, actual.Passcode)
+	require.Equal(t, Starting, actual.Status)
+	require.Equal(t, time.Unix(0, 0), actual.StartTime)
+	require.Equal(t, 0, actual.StartPlayers)
+	require.Equal(t, 0, actual.RemainPlayers)
 }
 
-func TestGetGamesList(t *testing.T) {
-	// Note: the test relies on sort orders by creation time for the final validation. Hence, the sleeps
-	// to get past something where it wasn't always guaranteed to run in the add sequence ???
-	target := GamePool{}
-	require.NotNil(t, target)
-	AddGameToPool(t, &target, "g1", "alpha", "a file", "pass" )
-	time.Sleep(100 * time.Millisecond)
-	AddGameToPool(t, &target, "g2", "beta", "a file again", "pass" )
-	time.Sleep(100 * time.Millisecond)
-	AddGameToPool(t, &target, "g3", "gamma", "a file III", "pass" )
-	time.Sleep(100 * time.Millisecond)
-	AddGameToPool(t, &target, "g4", "a different greek letter", "a file strikes back", "pass" )
-	actual := target.GetGamesList()
-	require.Equal(t, len(target.games), len(actual))
-	require.Equal(t, "g3", actual[2].GetID())
+func TestDecode(t *testing.T) {
+	require.FailNow(t, "Add me")
 }
 
-func AddGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string) {
-	ev := NewGameFromEvent( events.GameCreatedEvent{
-		ID:	         id,
-		TimeCreated: time.Now(),
-		EventType:	 "GameCreatedEvent",
-		GameCreator: creator,
-		KillDictionary: dict,
-	} )
-	err := pool.AddGame(&ev)
-	require.NoErrorf(t, err, "Didn't want to see error adding to the test pool: %v", err)
+func TestGetID(t *testing.T) {
+	require.FailNow(t, "Add me")
 }
+
+func TestGetStatus(t *testing.T) {
+	require.FailNow(t, "Add me")
+}
+
+func TestGetStatusReport(t *testing.T) {
+	require.FailNow(t, "Add me")
+}
+
+func TestStart(t *testing.T) {
+	require.FailNow(t, "Add me")
+}
+
+
+	// ID             string     `json:"id" bson:"_id"`
+	// TimeCreated    time.Time  `json:"timeCreated" bson:"timecreated"`
+	// GameCreator    string     `json:"gameId" bson:"gameid"`
+	// KillDictionary string     `json:"name" bson:"name"`
+	// Passcode       string     `json:"passcode" bson:"passcode"`
+	// Status         GameStatus `json:"status" bson:"status"`
+	// StartTime      time.Time  `json:"starttime"`
+	// StartPlayers   int        `json:"startplayers"`
+	// RemainPlayers  int        `json:"remainplayers"`
