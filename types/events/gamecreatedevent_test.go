@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 )
 
 func TestNewGameCreatedEventMultiple(t *testing.T) {
@@ -80,12 +80,12 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 		GameCreator:    "@Bob_Marley",
 		KillDictionary: "websters",
 	}
-	asBytes, err := bson.Marshal(original)
+	asBytes, err := bsoncodec.Marshal(original)
 	require.NoError(t, err, "Failure to marshal test object to bytes: %v", err)
 
 	t.Run("Positive", func(t *testing.T) {
-		actual := &GameCreatedEvent{}
-		err = actual.Decode(asBytes)
+		actual := GameCreatedEvent{}
+		err := actual.Decode(asBytes)
 		require.NoError(t, err, "Failure to marshal test object to BSON: %v", err)
 		require.Equal(t, original.ID, actual.ID)
 		require.Equal(t, original.TimeCreated, actual.TimeCreated)
@@ -103,9 +103,8 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 		// leverage the clean byte array from setup to make a copy with the bad value
 		brokenBytes := bytes.Replace(asBytes, []byte(`GameCreatedEvent`), badValue.Bytes(), 1)
 
-		actual := &GameCreatedEvent{}
+		actual := GameCreatedEvent{}
 		err = actual.Decode(brokenBytes)
 		require.Error(t, err, "Bad mapping should throw an error")
-		require.Contains(t, err.Error(), "corrupted", "Error message should indicate problem with casting")
 	})
 }

@@ -3,9 +3,8 @@ package types
 import (
 	"fmt"
 	"time"
-	
-	"gopkg.in/mgo.v2/bson"
-	events "wordassassin/types/events"
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"	
+	"wordassassin/types/events"
 )
 
 // GameStatus allows management of game state
@@ -50,26 +49,26 @@ func NewGameFromEvent(ev events.GameCreatedEvent) (g Game) {
 }
 
 // Decode populates this instance from the supplied bson
-func (g *Game) Decode(raw []byte) error {
-	if err := bson.Unmarshal(raw, g); err != nil {
+func (e *Game) Decode(raw []byte) error {
+	if err := bsoncodec.Unmarshal(raw, e); err != nil {
 		return err
 	}
 	return nil
 }
 
 // GetID getter for ID field
-func (g *Game) GetID() string {
+func (g Game) GetID() string {
 	return g.ID
 }
 
 // GetStatus translates the status enum
-func (g *Game) GetStatus() string {
+func (g Game) GetStatus() string {
 	// TODO: map to string values of enum
 	return string(g.Status)
 }
 
 // GetStatusReport generates a status report for this game instance
-func (g *Game) GetStatusReport() string {
+func (g Game) GetStatusReport() string {
 	result := 
 		fmt.Sprintf("Game Status for %s:\n\n", g.GetID()) +
 		fmt.Sprintf("   Status: %s\n", 	       g.GetStatus()) +
@@ -79,7 +78,7 @@ func (g *Game) GetStatusReport() string {
 }
 
 // Start does whatever is needed to transition from setup to go time
-func (g *Game) Start() error {
+func (g Game) Start() error {
 	// Validate whatever needs validating
 	// Set the game status to "running"
 	// Assign first round of targets

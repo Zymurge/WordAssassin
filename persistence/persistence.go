@@ -12,13 +12,23 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
 	"github.com/mongodb/mongo-go-driver/mongo/clientopt"
+
+//	"bytes"
+	mgobson "gopkg.in/mgo.v2/bson"
 )
+
+func getBytes(key interface{}) ([]byte, error) {
+    //var buf bytes.Buffer
+	buf, err := mgobson.Marshal(key); if err != nil {
+        return nil, err
+    }
+    return buf, nil
+}
 
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
 type Persistable interface {
 	GetID() string
-	Decode([]byte) error
-//	ToJSON() []byte
+//	Decode([]byte) error
 }
 
 // MongoAbstraction defines the set of DAL functions for accessing this Mongo collection
@@ -26,7 +36,8 @@ type MongoAbstraction interface {
 	ConnectToMongo() error
 	WriteCollection(collectionName string, object Persistable) error
 	UpdateCollection(collectionName string, object Persistable) error
-	FetchOneFromCollection(collectionName string, id string, object Persistable) error
+	FetchOneFromCollection(collectionName string, id string) ([]byte,error)
+	FetchAllFromCollection(collectionName string) ([][]byte, error)
 	DeleteFromCollection(collectionName string, id string) error
 }
 
@@ -127,7 +138,7 @@ func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err erro
 	myCollection := ms.db.Collection(coll)
 	var uResult *mongo.UpdateResult
 	var updateDoc *bson.Document
-	if updateBSON,err := bson.Marshal(obj); err != nil {
+	if updateBSON,err := getBytes(obj); err != nil {
 		return fmt.Errorf("Fail to Marshal bson: %s", err)
 	} else if updateDoc, err = bson.ReadDocument(updateBSON); err != nil {
 		return fmt.Errorf("Fail to create Document: %s", err)
@@ -154,7 +165,7 @@ func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err erro
 
 // FetchOneFromCollection fetches the Persistable by ID from the specified collection
 // If the ID is not found, logs and then returns an error containing the message "no documents"
-func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Persistable) (err error) {
+func (ms *MongoSession) FetchOneFromCollection(coll string, id string) (result []byte, err error) {
 	if err = ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("FetchOneFromCollection: could not establish mongo connection: %s", err)
 		return
@@ -172,28 +183,90 @@ func (ms *MongoSession) FetchOneFromCollection(coll string, id string, result Pe
 		ms.logger.Printf("FetchOneFromCollection: %s on Decode attempt for %s", err.Error(), id)
 		return
 	}
-	var bytes []byte 
-	bytes, err = queryResult.MarshalBSON()
-	if err != nil {
-		return
-	}
-
-	return result.Decode(bytes)
-}
-
-/*
-// FetchAllFromCollection fetches all the Persistables from the specified collection
-func (ms *MongoSession) FetchAllFromCollection(coll string) (result []bson.Raw, err error) {
-	if err = ms.CheckAndReconnect(); err != nil {
-		ms.logger.Printf("FetchAllFromCollection: could not establish mongo connection: %s", err)
-		return
-	}
-	myCollection := ms.db.C(coll)
-	q := myCollection.Find(bson.D{{}})
-	err = q.All(&result)
+	result, err = queryResult.MarshalBSON()
 	return
 }
-*/
+
+
+// FetchAllFromCollection fetches all the Persistables from the specified collection
+// They are returned in an array of the specified type in sample, which is supplied only for typing purposes
+func (ms *MongoSession) FetchAllFromCollection(coll string) (results [][]byte, err error) {
+	if err := ms.CheckAndReconnect(); err != nil {
+		ms.logger.Printf("FetchAllFromCollection: could not establish mongo connection: %s", err)
+		return nil, err
+	}
+
+	results = make([][]byte,0)
+	myCollection := ms.db.Collection(coll)
+	cur, err := myCollection.Find(context.Background(), nil)
+	if err != nil { 
+		ms.logger.Printf("FetchAllFromCollection: %s on Find attempt from %s", err.Error(), coll)
+		return nil, err
+	}
+	defer cur.Close(context.Background())
+	
+	for cur.Next(context.Background()) {
+		doc := bson.NewDocument()
+		err = cur.Decode(doc)
+		if err != nil { 
+			ms.logger.Printf("FetchAllFromCollection: %s on Decode attempt for %s", err.Error(), doc)
+			return nil, err
+		}
+		var elem []byte
+		elem, err = doc.MarshalBSON()
+		if err != nil {
+		 	return nil, err
+		}
+		results = append(results, elem)
+	}
+
+	return results, cur.Err()
+}
+
+// // FetchAllFromCollection fetches all the Persistables from the specified collection
+// // They are returned in an array of the specified type in sample, which is supplied only for typing purposes
+// func (ms *MongoSession) FetchAllFromCollection(coll string, sample Persistable) ([]Persistable, error) {
+// 	if err := ms.CheckAndReconnect(); err != nil {
+// 		ms.logger.Printf("FetchAllFromCollection: could not establish mongo connection: %s", err)
+// 		return nil, err
+// 	}
+
+// 	// Create result set after validating type is Persistable
+// 	// make the concrete type here???
+// 	result := make([]Persistable,0)
+
+// 	myCollection := ms.db.Collection(coll)
+// 	//var cur mongo.Cursor
+// 	cur, err := myCollection.Find(context.Background(), nil)
+// 	if err != nil { 
+// 		ms.logger.Printf("FetchAllFromCollection: %s on Find attempt from %s", err.Error(), coll)
+// 		return nil, err
+// 	}
+// 	defer cur.Close(context.Background())
+	
+// 	for cur.Next(context.Background()) {
+// 		doc := bson.NewDocument()
+// 		err = cur.Decode(doc)
+// 		if err != nil { 
+// 			ms.logger.Printf("FetchAllFromCollection: %s on Decode attempt for %s", err.Error(), doc)
+// 			return nil, err
+// 		}
+// 		var bytes []byte
+// 		bytes, err = doc.MarshalBSON()
+// 		if err != nil {
+// 			ms.logger.Printf("FetchAllFromCollection: %s on MarshalBSON attempt for %s", err.Error(), doc)
+// 			return nil, err
+// 		}
+// 		elem, err := sample.Decode(bytes)
+// 		if err != nil {
+// 			ms.logger.Printf("FetchAllFromCollection: %s on Persistable.Decode to type %T attempt for %s", err.Error(), sample, bytes)
+// 			return nil, err
+// 		}
+// 		result = append(result, elem)
+// 	}
+
+// 	return result, cur.Err()
+// }
 
 // DeleteFromCollection removes the Loc by ID from the specified collection
 // If the ID is not found, logs and then returns an error containing the message "no documents"

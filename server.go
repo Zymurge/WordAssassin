@@ -25,7 +25,7 @@ var (
 	mongoURL string
 	logger   *log.Logger
 	mongo    *dao.MongoSession
-	games    types.GamePool
+	games    *types.GamePool
 	players  types.PlayerPool
 	handler  Handler
 )
@@ -92,8 +92,8 @@ func main() {
 	if err != nil { log.Panicf("NewMongoSession: %s", err)}
 
 	players = types.PlayerPool{}
-	games = types.GamePool{}
-	handler = NewHandler(&games, &players, mongo)
+	games = types.NewGamePool(mongo)
+	handler = NewHandler(games, &players, mongo)
 
 	//*** Web Server Stuff ***//
 	e := echo.New()

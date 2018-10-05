@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -26,6 +26,37 @@ type MongoSessionSuite struct {
 	suite.Suite
 	session *mgo.Session
 	logger  *log.Logger
+}
+
+//*** Test Assets ***//
+
+// GenericPersistable is created for each time a player is added to the game
+type GenericPersistable struct {
+	ID          string    `json:"id" bson:"_id"`
+	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
+	Name        string    `json:"name" bson:"name"`
+}
+
+// GetID returns the unique identifer for this event
+func (e GenericPersistable) GetID() string {
+	return e.ID
+}
+
+// GetTimeCreated returns the unique identifer for this event
+func (e GenericPersistable) GetTimeCreated() time.Time {
+	return time.Now()
+}
+
+func (e *GenericPersistable) Decode(raw []byte) error {
+	if err := bsoncodec.Unmarshal(raw, e); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e GenericPersistable) ToJSON() []byte {
+	result, _ := json.Marshal(e)
+	return result
 }
 
 // Runner for the test suite. Ensures that mongo can be reached at the default location or aborts the suite. The suite provides a
@@ -80,11 +111,10 @@ func (m *MongoSessionSuite) TestConnectToMongo() {
 // }
 */
 
-// NOTE: FIXED
 func (m *MongoSessionSuite) TestWriteCollection() {
 	var err error
 	var testMS *MongoSession
-	testEvent := &testGenericPersistable{
+	testEvent := &GenericPersistable{
 		ID:   "13",
 		Name: "Fred",
 	}
@@ -92,12 +122,13 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
+		actual := GenericPersistable{}
 		err = testMS.WriteCollection(TestCollection, testEvent)
 		require.NoError(t, err, "Successful write throws no error. Instead we got %s", err)
 
-		actual := &testGenericPersistable{}
-		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), actual)
-		require.NoError(t, err, "Failed to validate write for id=%s", testEvent.GetID())
+		actualBytes, fErr := testMS.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		require.NoError(t, fErr, "Failed to validate write for id=%s", testEvent.GetID())
+		err = actual.Decode(actualBytes)
 	})
 	m.T().Run("DuplicateInsertShouldError", func(t *testing.T) {
 		dupTestEvent := testEvent
@@ -129,13 +160,12 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	})
 }
 
-// NOTE: FIXED
 func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	var err error
 	var testMS *MongoSession
-	testEvent := &testGenericPersistable{
+	testEvent := &GenericPersistable{
 		ID:          "-13",
-		TimeCreated: time.Unix(63667134976, 53).UTC(),
+	//	TimeCreated: time.Unix(63667134976, 53).UTC(),
 		Name:        "@wilma.f",
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
@@ -148,13 +178,12 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 		err = testMS.DeleteFromCollection(TestCollection, testEvent.GetID())
 		require.NoError(t, err, "Successful deletions throw no errors. But this threw: %s", err)
 		// validate that it's actually deleted now
-		actual := &testGenericPersistable{}
 		// TODO: fix fetchone for more complete mesaging
 		// expectedMsg := fmt.Sprintf("no documents for id=%s", testEvent.GetID())
 		expectedMsg := fmt.Sprintf("no documents")
-		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), actual)
-		require.Error(t, err, "A deleted id should throw an error on fetch")
-		require.Contains(t, err.Error(), expectedMsg, "The error should be a 'not found' message. Instead it is %s", err)
+		_, fErr := testMS.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		require.Error(t, fErr, "A deleted id should throw an error on fetch")
+		require.Contains(t, fErr.Error(), expectedMsg, "The error should be a 'not found' message. Instead it is %s", fErr)
 	})
 	m.T().Run("Missing ID", func(t *testing.T) {
 		testID := "I don't exist"
@@ -183,12 +212,10 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	})
 }
 
-// NOTE: All func tests working. Use setup as model.
-// TODO: solve diconnect test
 func (m *MongoSessionSuite) TestUpdateCollection() {
 	var err error
 	var testMS *MongoSession
-	testEvent := &testGenericPersistable{
+	testEvent := &GenericPersistable{
 		ID:          "-13",
 		TimeCreated: time.Unix(63667134985, 13).UTC(),
 		Name:        "@wilma.f",
@@ -202,17 +229,20 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		updateEvent := testEvent
 		expected := "@new.name"
 		updateEvent.Name = expected
+		var actual GenericPersistable
 
 		err = testMS.UpdateCollection(TestCollection, updateEvent)
 		require.NoError(t, err, "Successful update throws no error. Instead we got %s", err)
-		actual := &testGenericPersistable{}
-		if err := testMS.FetchOneFromCollection(TestCollection, updateEvent.GetID(), actual); err != nil {
-			require.NoError(t, err, "Failed to fetch result: %s", err.Error())
-		}
+		var resultBytes []byte
+		resultBytes, err = testMS.FetchOneFromCollection(TestCollection, updateEvent.GetID())
+		require.NoError(t, err, "Failed to fetch result: %s", err)
+		err = actual.Decode(resultBytes)
+		require.NoError(t, err, "Failed to decode result bytes: %s", err)
 		require.Equal(t, expected, actual.Name)
 	})
 	m.T().Run("MissingID", func(t *testing.T) {
-		badIDEvent := testEvent
+		badIDEvent := &GenericPersistable{}
+		*badIDEvent = *testEvent
 		badIDEvent.ID = "I b missing"
 
 		err = testMS.UpdateCollection(TestCollection, badIDEvent)
@@ -220,6 +250,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		require.Contains(t, err.Error(), "not found", "Looking for message about ID missing, but got: %s", err)
 	})
 	m.T().Run("CollectionNotExist", func(t *testing.T) {
+		// ensure that the target collection does not exist by iterating through all and deleting if found
 		testBadCollection := "garbage"
 		collections, _ := m.session.DB(TestDbName).CollectionNames()
 		for _, v := range collections {
@@ -244,14 +275,13 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 	})
 }
 
-// NOTE: FIXED
 func (m *MongoSessionSuite) TestFetchOneFromCollection() {
 	var err error
 	var testMS *MongoSession
-	testEvent := &testGenericPersistable{
+	testEvent := &GenericPersistable{
 		ID:          "31",
+		TimeCreated: time.Unix(63667135112, 0),
 		Name:        "Barney",
-		TimeCreated: time.Unix(63667135112, 0).UTC(),
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)
@@ -262,28 +292,28 @@ func (m *MongoSessionSuite) TestFetchOneFromCollection() {
 	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
-		result := &testGenericPersistable{}
-		err = testMS.FetchOneFromCollection(TestCollection, testEvent.GetID(), result)
-		require.NoError(t, err, "Successful lookup throws no error. Instead we got %s", err)
-		require.NotNil(t, result, "Successful lookup has to actually return something")
+		result := GenericPersistable{}
+		resultBytes, fErr := testMS.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		require.NoError(t, fErr, "Successful lookup throws no error. Instead we got %s", err)
+		require.NotNil(t, resultBytes, "Successful lookup has to actually return something")
+		err = result.Decode(resultBytes)
+		require.NoError(t, err, "Successful decode throws no error. Instead we got %s", err)
 		require.Equal(t, testEvent.GetID(), result.GetID())
 		require.Equal(t, testEvent.TimeCreated, result.TimeCreated)
 		require.Equal(t, testEvent.Name, result.Name)
 	})
 	m.T().Run("Missing ID", func(t *testing.T) {
-		var result Persistable
 		badID := "I an I bad, mon"
-		err = testMS.FetchOneFromCollection(TestCollection, badID, result)
-		require.Error(t, err, "Missing id should throw an error")
-		require.Contains(t, err.Error(), "no documents", "Message should give a clue. Instead it is %s", err)
+		_, fErr := testMS.FetchOneFromCollection(TestCollection, badID)
+		require.Error(t, fErr, "Missing id should throw an error")
+		require.Contains(t, fErr.Error(), "no documents", "Message should give a clue. Instead it is %s", fErr)
 	})
 	m.T().Run("Dropped connection", func(t *testing.T) {
-		var result Persistable
 		brokenSession, logBuf := GetMongoSessionWithLogger(t)
 		err = brokenSession.session.Disconnect(context.Background())
-		err = brokenSession.FetchOneFromCollection(TestCollection, testEvent.GetID(), result)
-		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
+		_, fErr := brokenSession.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		require.Error(t, fErr, "Should get an error if changed to unreachable URL")
+		require.Contains(t, fErr.Error(), "topology is closed", "Should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "FetchOneFromCollection", "Log message should inform on source of issue")
 	})
@@ -292,21 +322,21 @@ func (m *MongoSessionSuite) TestFetchOneFromCollection() {
 func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 	// Shared setup to populate a set of persistables
 	var err error
-	testEvents := []testGenericPersistable{
+	testEvents := []GenericPersistable{
 		{
 			ID:          "31",
 			Name:        "Barney",
-			TimeCreated: time.Unix(63667135112, 0).UTC(),
+			TimeCreated: time.Unix(0, 0),
 		},
 		{
 			ID:          "41",
 			Name:        "Betty",
-			TimeCreated: time.Unix(63667135112, 0).UTC(),
+			TimeCreated: time.Unix(50000, 0),
 		},
 		{
 			ID:          "51",
 			Name:        "Bam Bam",
-			TimeCreated: time.Unix(63667135112, 0).UTC(),
+			TimeCreated: time.Unix(3000000, 0),
 		},
 	}
 	for _, v := range testEvents {
@@ -317,15 +347,25 @@ func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
 	require.NotNil(m.T(), testMS)
-	/*
-		m.T().Run("Positive", func(t *testing.T) {
-			results := []bson.Raw{}
-			results, err = testMS.FetchAllFromCollection(TestCollection)
-			require.NoError(t, err, "Successful lookup throws no error. Instead we got %s", err)
-			require.NotNil(t, results, "Successful lookup has to actually return something")
-			require.Equal(t, len(testEvents), len(results))
-		})
-	*/
+
+	m.T().Run("Positive", func(t *testing.T) {
+		//results := make([]Persistable,0)
+		results, fErr := testMS.FetchAllFromCollection(TestCollection)
+		require.NoError(t, fErr, "Successful lookup throws no error. Instead we got %s", fErr)
+		require.NotNil(t, results, "Successful lookup has to actually return something")
+		require.Equal(t, len(testEvents), len(results))
+		// convert to original type then test further
+		for i,b := range results {
+			actual := GenericPersistable{}
+			dErr := actual.Decode(b)
+			require.NoError(t, dErr, "Successful decode throws no error. Instead we got %s", dErr)
+			require.IsType(t, GenericPersistable{}, actual)
+			require.Equal(t, testEvents[i].GetID(), actual.GetID())
+			require.Equal(t, testEvents[i].TimeCreated, actual.TimeCreated)
+		}
+	})
+	// TODO: UT failure scenarios
+
 }
 
 /*** Helper functions ***/
@@ -387,34 +427,3 @@ func GetMongoSessionWithLogger(t *testing.T) (ms *MongoSession, logBuf *bytes.Bu
 	return
 }
 
-//*** Test Assets ***//
-
-// testGenericPersistable is created for each time a player is added to the game
-type testGenericPersistable struct {
-	//GameEvent
-	ID          string    `json:"id" bson:"_id"`
-	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
-	Name        string    `json:"name" bson:"name"`
-}
-
-// GetID returns the unique identifer for this event
-func (e *testGenericPersistable) GetID() string {
-	return e.ID
-}
-
-// GetTimeCreated returns the unique identifer for this event
-func (e *testGenericPersistable) GetTimeCreated() time.Time {
-	return e.TimeCreated
-}
-
-func (e *testGenericPersistable) Decode(raw []byte) error {
-	if err := bson.Unmarshal(raw, e); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *testGenericPersistable) ToJSON() []byte {
-	result, _ := json.Marshal(e)
-	return result
-}

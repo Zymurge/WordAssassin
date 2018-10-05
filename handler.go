@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	persistence "wordassassin/persistence"
 	types "wordassassin/types"
@@ -39,7 +40,7 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 	if ev, err = events.NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
 		return
 	}
-	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
+	if mongoerr := h.mongo.WriteCollection("events", ev); mongoerr != nil {
 		// Want to handle errors with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
 			err = fmt.Errorf("Game %s already created", gameid)
@@ -51,7 +52,7 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 
 	// Create and register the game object in the game pool
 	game := types.NewGameFromEvent(ev)
-	if gperr := h.gPool.AddGame(&game); gperr != nil {
+	if gperr := h.gPool.AddGame(game); gperr != nil {
 		// Should catch all dups at the event level
 		if strings.Contains(gperr.Error(), "duplicate") {
 			// TODO: log this issue
@@ -119,7 +120,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 
 // GetGameStatus produces a game status report for the specified gameid
 func (h *Handler) GetGameStatus(gameid string) (result string, exists bool) {
-	var game *types.Game
+	var game types.Game
 	if game, exists = h.gPool.GetGame(gameid); !exists {
 		return
 	}
@@ -130,9 +131,11 @@ func (h *Handler) GetGameStatus(gameid string) (result string, exists bool) {
 // GetGamesList provides a listing of all of the games in the GamePool
 func (h *Handler) GetGamesList() (result string) {
 	result = "<h2>Games List</h2>\n"
+	result += "  timestamp: " + time.Now().String() + "\n<p>\n"
 	games := h.gPool.GetGamesList()
 	for _, v := range games {
-		result += "   " + v.GetID() + ": " + v.GetStatus() + "<p>\n"
+		line := fmt.Sprintf("<li>%s: %s, %d players</li>", v.GetID(), v.GetStatus(), v.StartPlayers)
+		result += line
 	}
 	return
 }

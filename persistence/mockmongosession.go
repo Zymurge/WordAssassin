@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"fmt"
 
 	mgo "gopkg.in/mgo.v2"
@@ -9,10 +10,11 @@ import (
 // MockMongoSession provides a mock abstraction to mongo
 type MockMongoSession struct {
 	MongoAbstraction
-	ConnectMode string
-	QueryMode   string
-	WriteMode   string
-	FetchResult Persistable
+	ConnectMode  string
+	QueryMode    string
+	WriteMode    string
+	FetchResult  Persistable
+	FetchResults []Persistable
 }
 
 // ConnectToMongo mock. Controlled by mm.ConnectMode values 'positive' and 'no connect'
@@ -67,18 +69,38 @@ func (mm *MockMongoSession) UpdateCollection(collectionName string, object Persi
 }
 
 // FetchFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
-func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string, result Persistable) error {
+func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string) (result []byte, err error) {
 	if err := mm.ConnectToMongo(); err != nil {
-		return err
+		return nil, err
 	}
 	switch {
 	case mm.QueryMode == "positive":
-		result = mm.FetchResult
-		return nil
+		result, err = bsoncodec.Marshal(mm.FetchResult)
+		return
 	case mm.QueryMode == "fail":
-		return fmt.Errorf("Mock error on get")
+		return nil, fmt.Errorf("Mock error on get")
 	}
-	return fmt.Errorf("Unknown mode for FetchFromCollection: %s", mm.QueryMode)
+	return nil, fmt.Errorf("Unknown mode for FetchFromCollection: %s", mm.QueryMode)
+}
+
+// FetchAllFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
+func (mm *MockMongoSession) FetchAllFromCollection(collectionName string) (results [][]byte, err error) {
+	if err := mm.ConnectToMongo(); err != nil {
+		return nil, err
+	}
+	switch {
+	case mm.QueryMode == "positive":
+		results = make([][]byte,len(mm.FetchResults))
+		for i, r := range mm.FetchResults {
+			if results[i], err = bsoncodec.Marshal(r); err != nil {
+				return nil, err
+			}
+		}
+		return
+	case mm.QueryMode == "fail":
+		return nil, fmt.Errorf("Mock error on get")
+	}
+	return nil, fmt.Errorf("Unknown mode for FetchAllFromCollection: %s", mm.QueryMode)
 }
 
 // DeleteFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
