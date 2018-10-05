@@ -101,19 +101,15 @@ func TestAddGame(t *testing.T) {
 }
 
 func TestReconstitutePool(t *testing.T) {
-	var eventsIn [4]Game
 	ev, _ := events.NewGameCreatedEvent("recon1", "testes", "killme", "Donner")
 	g0 := NewGameFromEvent(ev)
-	eventsIn[0] = g0
 	ev, _ = events.NewGameCreatedEvent("recon2", "testes", "killme", "Donner")
 	g1 := NewGameFromEvent(ev)
-	eventsIn[1] = g1
 	ev, _ = events.NewGameCreatedEvent("recon3", "testes", "killme", "Donner")
 	g2 := NewGameFromEvent(ev)
-	eventsIn[2] = g2
 	ev, _ = events.NewGameCreatedEvent("recon4", "testes", "killme", "Donner")
 	g3 := NewGameFromEvent(ev)
-	eventsIn[3] = g3
+	eventsIn := []Game{ g0, g1, g2, g3 }
 
 	t.Run("Positive", func(t *testing.T) {
 		target, _ := getGamePoolWithMockMongo(t)
@@ -125,11 +121,10 @@ func TestReconstitutePool(t *testing.T) {
 		require.Equal(t, actual.GetID(), expected)
 	})
 	t.Run("DuplicateErrors", func(t *testing.T) {
-		// change one member to create a dup
-		// TODO: don't break the global array
-		eventsIn[2].ID = "recon1"
+		// create new pool with a dup
+		dupEvents := []Game{ g1, g2, g1, g3, g0 }
 		target, _ := getGamePoolWithMockMongo(t)
-		err := target.ReconstitutePool(eventsIn[:])
+		err := target.ReconstitutePool(dupEvents[:])
 		require.Error(t, err, "Should toss out an error for a duplicate")
 		require.Contains(t, err.Error(), "duplicate", "Want to see that word in the error msg")
 	})

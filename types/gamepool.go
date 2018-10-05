@@ -37,19 +37,7 @@ func NewGamePool(m persistence.MongoAbstraction) (result *GamePool) {
 	return
 }
 
-func bytesToGame(inBytes [][]byte) []Game {
-    ret := make([]Game, len(inBytes))
-
-    for i, b := range inBytes {
-        if err := ret[i].Decode(b); err != nil {
-			panic( "bytesToGame: " + err.Error())
-		}
-    }
-
-    return ret
-}
-
-// AddGame adds a game to this pool. Enforces uniqueness of the Game.ID within the pool
+// AddGame adds a game to this pool and persists the addition. Enforces uniqueness of the Game.ID within the pool
 func (pool *GamePool) AddGame(game Game) error {
 	if pool.games == nil {
 		return fmt.Errorf("uninitialized pool. Use NewGamePool")
@@ -57,16 +45,12 @@ func (pool *GamePool) AddGame(game Game) error {
 	if game.GetID() == "" {
 		return fmt.Errorf("missing ID for AddGame")
 	}
-	if _, exists := pool.games[game.GetID()]; exists {
-		return fmt.Errorf("duplicate ID on add: %s", game.GetID())
+	if err := pool.addGameToMap(game); err != nil {
+		return err
 	}
-	pool.games[game.GetID()] = game
-
-	// Persist to mongo
-	if mongoErr := pool.mongo.WriteCollection("games", game); mongoErr != nil {
-		return mongoErr
+	if err := pool.persistGame(game); err != nil {
+		return err
 	}
-
 	return nil
 }
 
@@ -95,7 +79,37 @@ func (pool *GamePool) GetGamesList() (result []Game) {
 // ReconstitutePool rebuilds a new GamePool from an array of Games
 func (pool *GamePool) ReconstitutePool(games []Game) error {
 	for _, game := range games {
-		pool.games[game.GetID()] = game
+		if err := pool.addGameToMap(game); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func (pool *GamePool) addGameToMap(game Game) error {
+	if _, exists := pool.games[game.GetID()]; exists {
+		return fmt.Errorf("duplicate ID on add: %s", game.GetID())
+	}
+	pool.games[game.GetID()] = game
+	return nil
+}
+
+func bytesToGame(inBytes [][]byte) []Game {
+    ret := make([]Game, len(inBytes))
+
+    for i, b := range inBytes {
+        if err := ret[i].Decode(b); err != nil {
+			panic( "bytesToGame: " + err.Error())
+		}
+    }
+
+    return ret
+}
+
+func (pool *GamePool) persistGame(game Game) error {
+	if mongoErr := pool.mongo.WriteCollection("games", game); mongoErr != nil {
+		return mongoErr
+	}
+
 	return nil
 }
