@@ -7,7 +7,6 @@ package persistence
 
 import (
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -35,11 +34,11 @@ func TestShowTimeUnmarshalError(t *testing.T) {
 	if derr != nil {
 		panic("Marshal fail")
 	}
-	marshalBSON, merr := bsoncodec.Marshal(myStruct)
+	marshalBSON, merr := bson.Marshal(myStruct)
 	if merr != nil {
 		panic("Marshal fail")
 	}
-	uerr := bsoncodec.Unmarshal(docBSON, &result)
+	uerr := bson.Unmarshal(docBSON, &result)
 	if uerr != nil {
 		panic("Unmarshal fail")
 	}
