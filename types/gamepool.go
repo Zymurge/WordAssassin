@@ -14,17 +14,19 @@ const (
 
 // GamePool manages the collection of games in a running server
 type GamePool struct {
-	games map[string]Game
-	mongo persistence.MongoAbstraction
+	games 	 map[string]Game
+	mongo 	 persistence.MongoAbstraction
+	players	*PlayerPool
 }
 
 // NewGamePool creates an instance with an initialized pool and pointer to the persistence layer
-func NewGamePool(m persistence.MongoAbstraction) (result *GamePool) {
+func NewGamePool(m persistence.MongoAbstraction, pp *PlayerPool) (result *GamePool) {
 	games := make(map[string]Game, 10)
 	result = &GamePool{
 		games:	games,
 		mongo:	m,
 	}
+	result.players = pp
 
 	// Reconstitute from mongo automatically
 	// TODO: better error and logging on reconstitution issues
@@ -33,7 +35,7 @@ func NewGamePool(m persistence.MongoAbstraction) (result *GamePool) {
 	gamesList := bytesToGame(existingBytes)
 	err = result.ReconstitutePool(gamesList)
 	if err != nil { panic(err) }
-	fmt.Printf("Restored %d games", len(result.games))
+	fmt.Printf("NewGamePool: Restored %d games\n", len(result.games))
 	return
 }
 

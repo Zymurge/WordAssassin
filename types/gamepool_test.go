@@ -26,7 +26,7 @@ func TestNewGamePool(t *testing.T) {
 			GameCreator:	"Jimbo",
 			KillDictionary:	"Websters",
 			Status:			Starting,
-			Passcode:		"Mitrandir",
+			Passcode:		"Mithrandir",
 		},	
 	)
 	require.NotNil(t, target)
@@ -101,6 +101,7 @@ func TestAddGame(t *testing.T) {
 }
 
 func TestReconstitutePool(t *testing.T) {
+//	dummyPP := &PlayerPool{}
 	ev, _ := events.NewGameCreatedEvent("recon1", "testes", "killme", "Donner")
 	g0 := NewGameFromEvent(ev)
 	ev, _ = events.NewGameCreatedEvent("recon2", "testes", "killme", "Donner")
@@ -135,12 +136,13 @@ func TestReconstitutePool(t *testing.T) {
 // getGamePoolWithMockMongo creates a GamePool with a preset mock mongo and all positive mock behaviors
 func getGamePoolWithMockMongo(t *testing.T, existingGames... persistence.Persistable) (target *GamePool, mm *persistence.MockMongoSession) {
 	mm = &persistence.MockMongoSession{}
+	dummyPP := &PlayerPool{}
 	mm.ConnectMode = "positive"
 	mm.WriteMode = "positive"
 	mm.QueryMode = "positive"
 	// pre-existing games need to be added to the mock mongo before NewGamePool is called
 	mm.FetchResults = existingGames
-	target = NewGamePool(mm)
+	target = NewGamePool(mm, dummyPP)
 	return target, nil
 }
 
