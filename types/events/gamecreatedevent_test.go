@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 func TestNewGameCreatedEventMultiple(t *testing.T) {
@@ -80,7 +80,7 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 		GameCreator:    "@Bob_Marley",
 		KillDictionary: "websters",
 	}
-	asBytes, err := bsoncodec.Marshal(original)
+	asBytes, err := bson.Marshal(original)
 	require.NoError(t, err, "Failure to marshal test object to bytes: %v", err)
 
 	t.Run("Positive", func(t *testing.T) {

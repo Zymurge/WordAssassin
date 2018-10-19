@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 // GameCreatedEvent is created once per game instance
@@ -41,7 +41,7 @@ func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result Gam
 
 // Decode populates this instance from the supplied bson
 func (e *GameCreatedEvent) Decode(raw []byte) error {
-	if err := bsoncodec.Unmarshal(raw, e); err != nil {
+	if err := bson.Unmarshal(raw, e); err != nil {
 		return err
 	}
 	return nil
