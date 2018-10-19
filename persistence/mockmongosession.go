@@ -1,7 +1,7 @@
 package persistence
 
 import (
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"fmt"
 
 	mgo "gopkg.in/mgo.v2"
@@ -75,7 +75,7 @@ func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string
 	}
 	switch {
 	case mm.QueryMode == "positive":
-		result, err = bsoncodec.Marshal(mm.FetchResult)
+		result, err = bson.Marshal(mm.FetchResult)
 		return
 	case mm.QueryMode == "fail":
 		return nil, fmt.Errorf("Mock error on get")
@@ -91,8 +91,8 @@ func (mm *MockMongoSession) FetchAllFromCollection(collectionName string) (resul
 	switch {
 	case mm.QueryMode == "positive":
 		results = make([][]byte,len(mm.FetchResults))
-		for i, r := range mm.FetchResults {
-			if results[i], err = bsoncodec.Marshal(r); err != nil {
+		for i :=0; i < len(mm.FetchResults); i++ {
+			if results[i], err = bson.Marshal(mm.FetchResults[i]); err != nil {
 				return nil, err
 			}
 		}

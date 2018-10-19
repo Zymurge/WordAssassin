@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/globalsign/mgo"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -48,7 +48,7 @@ func (e GenericPersistable) GetTimeCreated() time.Time {
 }
 
 func (e *GenericPersistable) Decode(raw []byte) error {
-	if err := bsoncodec.Unmarshal(raw, e); err != nil {
+	if err := bson.Unmarshal(raw, e); err != nil {
 		return err
 	}
 	return nil
