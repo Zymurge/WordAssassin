@@ -1,4 +1,4 @@
-package persistence
+package mongogodrivertests
 
 /*
 	This test is in place while mongo-go-driver is in alpha. The goal is to verify that the bsoncodec
