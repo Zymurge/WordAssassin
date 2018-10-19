@@ -92,7 +92,7 @@ func main() {
 	if err != nil { log.Panicf("NewMongoSession: %s", err)}
 
 	players = types.PlayerPool{}
-	games = types.NewGamePool(mongo)
+	games = types.NewGamePool(mongo, &players)
 	handler = NewHandler(games, &players, mongo)
 
 	//*** Web Server Stuff ***//
