@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"log"
 
 	persistence "wordassassin/persistence"
 	types "wordassassin/types"
@@ -13,18 +14,21 @@ import (
 // Handler contains the context necessary to process events and put everything where it belongs. Needs to be aware
 // of persistence, the game pool, the player pool, etc
 type Handler struct {
-	gPool *types.GamePool
-	pPool *types.PlayerPool
-	mongo persistence.MongoAbstraction
+	gPool	 *types.GamePool
+	pPool 	 *types.PlayerPool
+	mongo 	 persistence.MongoAbstraction
+	logger   *log.Logger
 	// other stuff?
 }
 
 // NewHandler creates a handler instance using the injected dependencies (hint, hint: they're for testing)
-func NewHandler(gg *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbstraction) Handler {
-	return Handler{
-		gPool: gg,
+func NewHandler(gp *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbstraction, l *log.Logger) *Handler {
+	// TODO: validate non-nil injected dependencies and return error
+	return &Handler{
+		gPool: gp,
 		pPool: pp,
 		mongo: m,
+		logger: l,
 	}
 }
 
@@ -33,7 +37,7 @@ func NewHandler(gg *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbs
 // Errors:
 // -- creator or killdict is empty
 func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err error) {
-	// Validate the params
+	// TODO: Validate the params
 
 	// Create and persist the event to request a new game
 	var ev events.GameCreatedEvent
@@ -55,7 +59,6 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 	if gperr := h.gPool.AddGame(game); gperr != nil {
 		// Should catch all dups at the event level
 		if strings.Contains(gperr.Error(), "duplicate") {
-			// TODO: log this issue
 			err = fmt.Errorf("Something bad happened. GamePool out of sync with mongo events")
 			return
 		}
@@ -104,7 +107,6 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	if hperr := h.pPool.AddPlayer(&player); hperr != nil {
 		// Should catch all dups at the event level
 		if strings.Contains(hperr.Error(), "duplicate") {
-			// TODO: log this issue
 			err = fmt.Errorf("Something bad happened. PlayerPool out of sync with mongo events")
 			return
 		}
@@ -118,9 +120,21 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	return nil
 }
 
+// OnGameStarted handles activiting a game from the starting stage into playing.
+// Only the original game creator is allowed to start a given gameid.
+// Errors:
+// -- gameid or slackid empty
+// -- gameid not exists and in 'starting' state
+// -- slackid does not match the creating slackid
+func (h *Handler) OnGameStarted(gameid string, slackid string) (err error) {
+	// First, make sure there's already a game and it's not started yet
+	err = h.gPool.StartGame(gameid, slackid)
+	return
+}
+
 // GetGameStatus produces a game status report for the specified gameid
 func (h *Handler) GetGameStatus(gameid string) (result string, exists bool) {
-	var game types.Game
+	var game *types.Game
 	if game, exists = h.gPool.GetGame(gameid); !exists {
 		return
 	}

@@ -12,7 +12,7 @@ import (
 func TestNewGamePool(t *testing.T) {
 	// Create pool with some pre-existing games to be rehydrated during construction
 	target, _ := getGamePoolWithMockMongo( t, 
-		Game{
+		&Game{
 			ID:				"Mock1",
 			TimeCreated:	time.Now(),
 			GameCreator:	"Jim",
@@ -20,7 +20,7 @@ func TestNewGamePool(t *testing.T) {
 			Status:			Starting,
 			Passcode:		"Gandalf",
 		},
-		Game{
+		&Game{
 			ID:				"Mock2",
 			TimeCreated:	time.Now(),
 			GameCreator:	"Jimbo",
@@ -129,6 +129,22 @@ func TestReconstitutePool(t *testing.T) {
 		require.Error(t, err, "Should toss out an error for a duplicate")
 		require.Contains(t, err.Error(), "duplicate", "Want to see that word in the error msg")
 	})
+}
+
+func TestStartGame(t *testing.T) {
+	// Setup: create gamepool, playerpool, a game and some players for the game in the pool
+	// FYI: a valid game currently requires 5 players to start
+
+	// TODO: Need a mock PlayerPool and abstraction
+
+	t.Run("Positive", func(t *testing.T){
+
+	})
+	// game doesn't exists
+	// game in correct state for start
+	// game creator matches
+	// game start returns an error
+
 }
 
 //** Helper functions **//

@@ -17,6 +17,15 @@ type MockMongoSession struct {
 	FetchResults []Persistable
 }
 
+// NewMockMongoSession provides a mock with default 'positive' behaviors
+func NewMockMongoSession() *MockMongoSession {
+	mm := MockMongoSession{}
+	mm.ConnectMode = "positive"
+	mm.QueryMode   = "positive"
+	mm.WriteMode   = "positive"
+	return &mm
+}
+
 // ConnectToMongo mock. Controlled by mm.ConnectMode values 'positive' and 'no connect'
 func (mm *MockMongoSession) ConnectToMongo() error {
 	switch {
@@ -68,8 +77,8 @@ func (mm *MockMongoSession) UpdateCollection(collectionName string, object Persi
 	return fmt.Errorf("Unknown mode for UpdateCollection: %s", mm.WriteMode)
 }
 
-// FetchFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
-func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string) (result []byte, err error) {
+// FetchIDFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
+func (mm *MockMongoSession) FetchIDFromCollection(collectionName string, id string) (result []byte, err error) {
 	if err := mm.ConnectToMongo(); err != nil {
 		return nil, err
 	}
@@ -81,6 +90,12 @@ func (mm *MockMongoSession) FetchFromCollection(collectionName string, id string
 		return nil, fmt.Errorf("Mock error on get")
 	}
 	return nil, fmt.Errorf("Unknown mode for FetchFromCollection: %s", mm.QueryMode)
+}
+
+// FetchFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
+func (mm *MockMongoSession) FetchFromCollection(collectionName string, query bson.Document) (results [][]byte, err error) {
+	//TODO: implement me
+	panic("ack!")
 }
 
 // FetchAllFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'

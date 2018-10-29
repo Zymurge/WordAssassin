@@ -27,7 +27,7 @@ var (
 	mongo    *dao.MongoSession
 	games    *types.GamePool
 	players  types.PlayerPool
-	handler  Handler
+	handler  *Handler
 )
 
 func getGamesList(c echo.Context) error {
@@ -47,11 +47,12 @@ func createGame(c echo.Context) error {
 	gameid := c.Param("gameid")
 	creator := c.Param("creator")
 	var (
-		killdict string // get from query
-		passcode string // get from query
+		killdict string // TODO: get from query
+		passcode string // TODO: get from query
 	)
 
 	if err := handler.OnGameCreated(gameid, creator, killdict, passcode); err != nil {
+		logger.Printf("OnGameCreated error: %s", err.Error())
 		return c.HTML(http.StatusInternalServerError, err.Error())
 	}
 	message := fmt.Sprintf("<h3>Game Created</h3><p>Game: %s  Creator: %s", gameid, creator)
@@ -59,15 +60,26 @@ func createGame(c echo.Context) error {
 }
 
 func addPlayer(c echo.Context) error {
-	// TODO: pass all vars (tag, name, email)
 	gameid := c.Param("gameid")
 	slackid := c.Param("slackid")
 	name := c.Param("name")
 	email := c.Param("email")
 	if err := handler.OnPlayerAdded(gameid, slackid, name, email); err != nil {
+		logger.Printf("OnPlayerAdded error: %s", err.Error())
 		return c.HTML(http.StatusInternalServerError, err.Error())
 	}
 	message := fmt.Sprintf("Player %s added to game %s", slackid, gameid)
+	return c.HTML(http.StatusOK, message)
+}
+
+func startGame(c echo.Context) error {
+	gameid := c.Param("gameid")
+	slackid := c.Param("slackid")
+	if err := handler.OnGameStarted(gameid, slackid); err != nil {
+		logger.Printf("OnGameStarted error: %s", err.Error())
+		return c.HTML(http.StatusInternalServerError, err.Error())
+	}
+	message := fmt.Sprintf("Game %s started by %s", gameid, slackid)
 	return c.HTML(http.StatusOK, message)
 }
 
@@ -89,11 +101,11 @@ func main() {
 		logger.Fatalf("Can't find Mongo URL env variable: %s", mongoURLEnvName)
 	}
 	mongo, err = dao.NewMongoSession(mongoURL, mongoDB, logger)
-	if err != nil { log.Panicf("NewMongoSession: %s", err)}
+	if err != nil { logger.Panicf("NewMongoSession: %s", err)}
 
 	players = types.PlayerPool{}
 	games = types.NewGamePool(mongo, &players)
-	handler = NewHandler(games, &players, mongo)
+	handler = NewHandler(games, &players, mongo, logger)
 
 	//*** Web Server Stuff ***//
 	e := echo.New()
@@ -109,6 +121,7 @@ func main() {
 	e.GET("/gameslist", getGamesList)
 	e.POST("/creategame/:gameid/:creator", createGame)
 	e.POST("/addplayer/:gameid/:slackid", addPlayer)
+	e.POST("/startgame/:gameid/:slackid", startGame)
 
 	// Start server
 	e.Logger.Fatal(e.Start(port))

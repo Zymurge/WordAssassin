@@ -35,6 +35,7 @@ type GenericPersistable struct {
 	ID          string    `json:"id" bson:"_id"`
 	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
 	Name        string    `json:"name" bson:"name"`
+	ANumber		int       `json:"anumber" bson:"anumber"`	  
 }
 
 // GetID returns the unique identifer for this event
@@ -117,6 +118,7 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	testEvent := &GenericPersistable{
 		ID:   "13",
 		Name: "Fred",
+		ANumber: 13,
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
@@ -126,7 +128,7 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 		err = testMS.WriteCollection(TestCollection, testEvent)
 		require.NoError(t, err, "Successful write throws no error. Instead we got %s", err)
 
-		actualBytes, fErr := testMS.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		actualBytes, fErr := testMS.FetchIDFromCollection(TestCollection, testEvent.GetID())
 		require.NoError(t, fErr, "Failed to validate write for id=%s", testEvent.GetID())
 		err = actual.Decode(actualBytes)
 	})
@@ -167,6 +169,7 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 		ID:          "-13",
 	//	TimeCreated: time.Unix(63667134976, 53).UTC(),
 		Name:        "@wilma.f",
+		ANumber:	-13,
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
@@ -181,7 +184,7 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 		// TODO: fix fetchone for more complete mesaging
 		// expectedMsg := fmt.Sprintf("no documents for id=%s", testEvent.GetID())
 		expectedMsg := fmt.Sprintf("no documents")
-		_, fErr := testMS.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		_, fErr := testMS.FetchIDFromCollection(TestCollection, testEvent.GetID())
 		require.Error(t, fErr, "A deleted id should throw an error on fetch")
 		require.Contains(t, fErr.Error(), expectedMsg, "The error should be a 'not found' message. Instead it is %s", fErr)
 	})
@@ -219,6 +222,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		ID:          "-13",
 		TimeCreated: time.Unix(63667134985, 13).UTC(),
 		Name:        "@wilma.f",
+		ANumber:	-13,
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
@@ -234,7 +238,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		err = testMS.UpdateCollection(TestCollection, updateEvent)
 		require.NoError(t, err, "Successful update throws no error. Instead we got %s", err)
 		var resultBytes []byte
-		resultBytes, err = testMS.FetchOneFromCollection(TestCollection, updateEvent.GetID())
+		resultBytes, err = testMS.FetchIDFromCollection(TestCollection, updateEvent.GetID())
 		require.NoError(t, err, "Failed to fetch result: %s", err)
 		err = actual.Decode(resultBytes)
 		require.NoError(t, err, "Failed to decode result bytes: %s", err)
@@ -275,13 +279,14 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 	})
 }
 
-func (m *MongoSessionSuite) TestFetchOneFromCollection() {
+func (m *MongoSessionSuite) TestFetchIDFromCollection() {
 	var err error
 	var testMS *MongoSession
 	testEvent := &GenericPersistable{
 		ID:          "31",
 		TimeCreated: time.Unix(63667135112, 0),
 		Name:        "Barney",
+		ANumber:	 31,
 	}
 	// Shared setup
 	err = AddToMongoCollection(m.T(), m.session, TestCollection, testEvent)
@@ -293,7 +298,7 @@ func (m *MongoSessionSuite) TestFetchOneFromCollection() {
 
 	m.T().Run("Positive", func(t *testing.T) {
 		result := GenericPersistable{}
-		resultBytes, fErr := testMS.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		resultBytes, fErr := testMS.FetchIDFromCollection(TestCollection, testEvent.GetID())
 		require.NoError(t, fErr, "Successful lookup throws no error. Instead we got %s", err)
 		require.NotNil(t, resultBytes, "Successful lookup has to actually return something")
 		err = result.Decode(resultBytes)
@@ -304,18 +309,18 @@ func (m *MongoSessionSuite) TestFetchOneFromCollection() {
 	})
 	m.T().Run("Missing ID", func(t *testing.T) {
 		badID := "I an I bad, mon"
-		_, fErr := testMS.FetchOneFromCollection(TestCollection, badID)
+		_, fErr := testMS.FetchIDFromCollection(TestCollection, badID)
 		require.Error(t, fErr, "Missing id should throw an error")
 		require.Contains(t, fErr.Error(), "no documents", "Message should give a clue. Instead it is %s", fErr)
 	})
 	m.T().Run("Dropped connection", func(t *testing.T) {
 		brokenSession, logBuf := GetMongoSessionWithLogger(t)
 		err = brokenSession.session.Disconnect(context.Background())
-		_, fErr := brokenSession.FetchOneFromCollection(TestCollection, testEvent.GetID())
+		_, fErr := brokenSession.FetchIDFromCollection(TestCollection, testEvent.GetID())
 		require.Error(t, fErr, "Should get an error if changed to unreachable URL")
 		require.Contains(t, fErr.Error(), "topology is closed", "Should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "FetchOneFromCollection", "Log message should inform on source of issue")
+		require.Contains(t, logBuf.String(), "FetchIDFromCollection", "Log message should inform on source of issue")
 	})
 }
 
@@ -327,16 +332,19 @@ func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 			ID:          "31",
 			Name:        "Barney",
 			TimeCreated: time.Unix(0, 0),
+			ANumber:	 21,
 		},
 		{
 			ID:          "41",
 			Name:        "Betty",
 			TimeCreated: time.Unix(50000, 0),
+			ANumber:	 21,
 		},
 		{
 			ID:          "51",
 			Name:        "Bam Bam",
 			TimeCreated: time.Unix(3000000, 0),
+			ANumber:	 44,
 		},
 	}
 	for _, v := range testEvents {

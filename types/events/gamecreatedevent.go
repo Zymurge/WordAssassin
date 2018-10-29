@@ -48,11 +48,11 @@ func (e *GameCreatedEvent) Decode(raw []byte) error {
 }
 
 // GetID returns the unique identifer for this event
-func (e GameCreatedEvent) GetID() string {
+func (e *GameCreatedEvent) GetID() string {
 	return e.ID
 }
 
 // GetTimeCreated returns the unique identifer for this event
-func (e GameCreatedEvent) GetTimeCreated() time.Time {
+func (e *GameCreatedEvent) GetTimeCreated() time.Time {
 	return e.TimeCreated
 }
