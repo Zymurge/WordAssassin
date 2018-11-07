@@ -39,6 +39,15 @@ func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result Gam
 	return
 }
 
+// NewGameCreatedInline returns an instance of the event with no error value. Panics on error instead.
+func NewGameCreatedInline(gameid, creator, killdict, passcode string) GameCreatedEvent {
+	if result, err := NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
+		panic(err)
+	} else {
+		return result
+	}
+}
+
 // Decode populates this instance from the supplied bson
 func (e *GameCreatedEvent) Decode(raw []byte) error {
 	if err := bson.Unmarshal(raw, e); err != nil {

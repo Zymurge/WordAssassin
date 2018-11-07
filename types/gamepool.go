@@ -64,9 +64,8 @@ func (pool *GamePool) GetGame(id string) (*Game, bool) {
 	game, exists := pool.games[id]
 	if exists {
 		return &game, true
-	} else {
-		return nil, false
 	}
+	return nil, false
 }
 
 // GetGamesList gives a list of each game ID separated by a newline. The result are sorted chronologically by created time

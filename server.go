@@ -46,10 +46,9 @@ func getGameStatus(c echo.Context) error {
 func createGame(c echo.Context) error {
 	gameid := c.Param("gameid")
 	creator := c.Param("creator")
-	var (
-		killdict string // TODO: get from query
-		passcode string // TODO: get from query
-	)
+
+	killdict := c.QueryParam("killdict")
+	passcode := c.QueryParam("passcode")
 
 	if err := handler.OnGameCreated(gameid, creator, killdict, passcode); err != nil {
 		logger.Printf("OnGameCreated error: %s", err.Error())

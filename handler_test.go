@@ -134,48 +134,120 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 	}
 }
 */
-/*
 func TestHandler_OnGameCreated(t *testing.T) {
-	testHandler, mongo, blog := getHandlerWithMockMongoAndLogger()
+	// TODO: ensure tests for validating non-blank parameters
+	testHandler, mongo, blog := getHandlerWithMockMongoAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
 	tests := []testArgs {
-		{"positive", testHandler, false, "",
-			gameArgs{"game1", "@fred", "somedict.txt", "topsecret", 0},
-			playerArgs{},
-			mockControls{"positive", "positive", nil}},
-		{"GamePool error (from dup)", testHandler, true, "out of sync",
-			gameArgs{"dupe_game", "@testmaster", "somedict.txt", "topsecret", 0},
-			playerArgs{},
-			mockControls{"positive", "positive", nil}},
-		{"duplicate gameID (at mongo)", testHandler, true, "dupe_game already created",
-			gameArgs{"dupe_game", "@testmaster", "somedict.txt", "topsecret", 0},
-			playerArgs{},
-			mockControls{"positive", "duplicate", nil}},
-		{"empty gameID argument", testHandler, true, "missing GameID",
-			gameArgs{"", "@someone", "whatev", "xxx", 0},
-			playerArgs{},
-			mockControls{"positive", "positive", nil}},
-		{"mongo fail", testHandler, true, "connect",
-			gameArgs{"fail", "n/a", "n/a", "bad@email.org", 0},
-			playerArgs{},
-			mockControls{"no connect", "positive", nil}},
+		testArgs {
+			name: "positive",
+			wantErr: false,
+			gArgs: gameArgs {
+				gameid: "game1",
+				creator: "@fred",
+				killdict: "notBlank",
+				passcode: "notBlank",
+				numPlayers: 2,
+			},
+			cArgs: commandArgs {
+				gameid: "game1",
+				creator: "@fred",
+			},
+		},
+		testArgs {
+			name: "empty gameID argument",
+			wantErr: true,
+			errText: "with blank gameid",
+			gArgs: gameArgs {
+				gameid: "",
+				creator: "@someone",
+				killdict: "notBlank",
+				passcode: "notBlank",
+				numPlayers: 3,
+			},
+			cArgs: commandArgs {
+				gameid: "",
+				creator: "",
+			},
+		},
+		testArgs {
+			name: "duplicate gameID (at mongo)",
+			wantErr: true,
+			errText: "dupe_game already created",
+			gArgs: gameArgs {
+				gameid: "dupe_game",
+				creator: "@testmaster",
+				killdict: "notBlank",
+				passcode: "notBlank",
+				numPlayers: 2,
+			},
+			mock: mockControls {
+				connectMode: "positive",
+				writeMode: "duplicate",
+				returnVal: nil,
+			},
+			cArgs: commandArgs {
+				gameid: "",
+				creator: "",
+			},
+		},
+		testArgs {
+			name: "duplicate gameID (GamePool)",
+			wantErr: true,
+			errText: "GamePool out of sync",
+			gArgs: gameArgs {
+				gameid: "dupe_game",
+				creator: "@testmaster",
+				killdict: "notBlank",
+				passcode: "notBlank",
+				numPlayers: 2,
+			},
+			mock: mockControls {
+				connectMode: "positive",
+				writeMode: "positive",
+				returnVal: nil,
+			},
+			cArgs: commandArgs {
+				gameid: "",
+				creator: "",
+			},
+		},
+		testArgs {
+			name: "mongo fail",
+			wantErr: true,
+			errText: "connect",
+			gArgs: gameArgs {
+				gameid: "fail",
+				creator: "n/a",
+				killdict: "notBlank",
+				passcode: "notBlank",
+				numPlayers: 0,
+			},
+			mock: mockControls {
+				connectMode: "no connect",
+				writeMode: "positive",
+				returnVal: nil,
+			},
+			cArgs: commandArgs {
+				gameid: "",
+				creator: "",
+			},
+		},
 	}
 
 	// Add a game for tests that need a pre-existing id
-	dupGame := types.Game{
-		ID:             "dupe_game",
-		TimeCreated:    time.Now(),
-		GameCreator:    "@testmaster",
-		KillDictionary: "websters",
-		Status:         types.Starting,
-	}
-	testHandler.gPool.AddGame(dupGame)
+	testHandler.gPool.AddGame( types.Game{
+			ID:             "dupe_game",
+			//TimeCreated:    time.Now(),
+			GameCreator:    "@testmaster",
+			KillDictionary: "websters",
+			Status:         types.Starting,
+		} )
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mongo.ConnectMode = tt.mock.connectMode
-			mongo.WriteMode = tt.mock.writeMode
-			err := tt.h.OnGameCreated(tt.gArgs.gameid, tt.gArgs.creator, tt.gArgs.killdict, tt.gArgs.passcode)
+			setMockControlsFromArgs(mongo, tt.mock)
+			err := testHandler.OnGameCreated(tt.gArgs.gameid, tt.gArgs.creator, tt.gArgs.killdict, tt.gArgs.passcode)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
@@ -183,18 +255,14 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
 				actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
 				require.NotNilf(t, exists, "Expected % to exist in the gamepool", tt.gArgs.gameid)
-				require.Equal(t, tt.gArgs.gameid, actual.GetID(), "Didn't find game added despite success")
+				require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
 			}
 		})
 	}
 }
-*/
 
 func TestHandler_OnGameStarted(t *testing.T) {
-	testHandler, mongo, blog := getHandlerWithMockMongoAndLogger()
-	require.NotNil(t, testHandler, "Make sure creation worked")
-	require.NotNil(t, testHandler.gPool, "Make sure we have a valid GamePool")
-	require.NotNil(t, testHandler.pPool, "Make sure we have a valid PlayerPool")
+	testHandler, mongo, blog := getHandlerWithMockMongoAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
 	tests := []testArgs {
 		testArgs {
@@ -303,19 +371,12 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			}
 		})
 	}
-
-	// TODO: add tests
-		// game exists
-		// game in correct state for start
-		// game creator matches
-		// game start returns an error
-	t.FailNow()
 }
 
 
 /*** Helpers ***/
 
-func getHandlerWithMockMongoAndLogger() (testHandler *Handler, mongo *dao.MockMongoSession, logBuf *bytes.Buffer) {
+func getHandlerWithMockMongoAndLogger(t *testing.T) (testHandler *Handler, mongo *dao.MockMongoSession, logBuf *bytes.Buffer) {
 	mongo = dao.NewMockMongoSession()
 	testPPool := types.PlayerPool{}
 	testGPool := types.NewGamePool(mongo, &testPPool)
@@ -323,6 +384,9 @@ func getHandlerWithMockMongoAndLogger() (testHandler *Handler, mongo *dao.MockMo
 	logLabel := "handler_test: "
 	blog := log.New(logBuf, logLabel, 0)
 	testHandler = NewHandler(testGPool, &testPPool, mongo, blog)
+	require.NotNil(t, testHandler, "Make sure creation worked")
+	require.NotNil(t, testHandler.gPool, "Make sure we have a valid GamePool")
+	require.NotNil(t, testHandler.pPool, "Make sure we have a valid PlayerPool")
 	return
 }
 

@@ -7,9 +7,24 @@ import (
 	"encoding/binary"
 	"time"
 	"gopkg.in/mgo.v2/bson"
+
+	"wordassassin/persistence"
 )
 
-func TestNewPlayerAddedEventMultiple(t *testing.T) {
+func TestPlayerAddedEventIsPersistable(t * testing.T) {
+	ev := &PlayerAddedEvent {
+		ID:				"I will persist",
+		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+		EventType:		"PlayerAddedEvent",
+		GameID:			"Time",
+		Name:			"Pink Floyd",
+	}
+	
+	_, ok := interface{}(ev).(persistence.Persistable)
+	require.True(t, ok)
+}
+
+func TestNewPlayerAddedEvent_MultiplePermutations(t *testing.T) {
 	tests := []struct {
 		testname string
 		ID string
@@ -49,7 +64,7 @@ func TestNewPlayerAddedEventMultiple(t *testing.T) {
 				require.Contains(t, err.Error(), tt.msg)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.ID, got.ID)
+				require.Equal(t, tt.ID, got.GetID())
 				require.Equal(t, tt.GameID, got.GameID)
 				require.Equal(t, tt.SlackID, got.SlackID)
 				require.Equal(t, "PlayerAddedEvent", got.EventType)
@@ -59,6 +74,20 @@ func TestNewPlayerAddedEventMultiple(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewPlayerAddedInline_Positive(t *testing.T) {
+	expectedGameID := "inline_game"
+	expectedSlackID := "@inline tester"
+	expectedID := expectedGameID + "+" + expectedSlackID
+	require.NotPanics(t, func(){NewPlayerAddedInline(expectedGameID, expectedSlackID, "some dude", "email@addr.es")} )
+	actual := NewPlayerAddedInline( expectedGameID, expectedSlackID, "some dude", "email@addr.es" )
+	require.NotNil(t, actual, "Successful creation actually creates something")
+	require.Equal(t, actual.GetID(), expectedID)
+}
+
+func TestNewPlayerAddedInline_Panics(t *testing.T) {
+	require.Panics(t, func(){NewPlayerAddedInline("", "", "I panic", "email@addr.es")} )
 }
 
 func TestPlayerAddedEvent_GetTimeCreated(t *testing.T) {

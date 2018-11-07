@@ -7,7 +7,23 @@ import (
 	"encoding/binary"
 	"time"
 	"github.com/mongodb/mongo-go-driver/bson"
+
+	"wordassassin/persistence"
 )
+
+func TestGameCreatedEventIsPersistable(t * testing.T) {
+	ev := &GameCreatedEvent {
+		ID:				"I will persist",
+		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
+		EventType:		"GameCreatedEvent",
+		GameCreator:	"Methusala",
+		KillDictionary:	"Dirt phrases",
+		Passcode:		"geriatric",
+	}
+	
+	_, ok := interface{}(ev).(persistence.Persistable)
+	require.True(t, ok)
+}
 
 func TestNewGameCreatedEventMultiple(t *testing.T) {
 	tests := []struct {
@@ -48,7 +64,7 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 				require.Contains(t, err.Error(), tt.msg)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.ID, got.ID)
+				require.Equal(t, tt.ID, got.GetID())
 				require.Equal(t, "GameCreatedEvent", got.EventType)
 				require.NotNil(t, got.TimeCreated) // can't match a time now
 				require.Equal(t, tt.GameCreator, got.GameCreator)
@@ -57,6 +73,18 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewGameCreatedInline_Positive(t *testing.T) {
+	expectedGameID := "inline_game"
+	require.NotPanics(t, func(){NewGameCreatedInline(expectedGameID, "@inline creator", "some dude", "email@addr.es")} )
+	actual := NewGameCreatedInline(expectedGameID,  "@inline creator", "some dude", "email@addr.es")
+	require.NotNil(t, actual, "Successful creation actually creates something")
+	require.Equal(t, actual.GetID(), expectedGameID)
+}
+
+func TestNewGameCreatedInline_Panics(t *testing.T) {
+	require.Panics(t, func(){NewGameCreatedInline("", "", "I panic", "email@addr.es")} )
 }
 
 func TestGameCreatedEvent_GetTimeCreated(t *testing.T) {

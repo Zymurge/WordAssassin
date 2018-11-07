@@ -41,6 +41,15 @@ func NewPlayerAddedEvent(gameid, slackid, name, email string) (result PlayerAdde
 	return
 }
 
+// NewPlayerAddedInline returns an instance of the event with no error value. Panics on error instead.
+func NewPlayerAddedInline(gameid, slackid, name, email string) PlayerAddedEvent {
+	if result, err := NewPlayerAddedEvent(gameid, slackid, name, email); err != nil {
+		panic(err)
+	} else {
+		return result
+	}
+}
+
 // GetID returns the unique identifer for this event
 func (e *PlayerAddedEvent) GetID() string {
 	return e.ID

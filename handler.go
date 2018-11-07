@@ -37,14 +37,17 @@ func NewHandler(gp *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbs
 // Errors:
 // -- creator or killdict is empty
 func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err error) {
-	// TODO: Validate the params
+	if gameid   == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank gameid") }
+	if creator  == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank creator") }
+	if killdict == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank killdict") }
+	if passcode == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank passcode") }
 
 	// Create and persist the event to request a new game
 	var ev events.GameCreatedEvent
 	if ev, err = events.NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
 		return
 	}
-	if mongoerr := h.mongo.WriteCollection("events", ev); mongoerr != nil {
+	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle errors with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
 			err = fmt.Errorf("Game %s already created", gameid)
