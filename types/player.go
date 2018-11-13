@@ -22,12 +22,12 @@ type Player struct {
 	Target		string		`json:"target" bson:"target"`
 	KillWord	string		`json:"killword" bson:"killword"`
 }
-
-// Constants for PlayerStatus
-const (
-	Alive PlayerStatus = iota + 1
-	Dead
-)
+	
+	// Constants for PlayerStatus
+	const (
+		Alive PlayerStatus = iota + 1
+		Dead
+	)
 
 // NewPlayerFromEvent instantiates a Player from a PlayerAdedEvent
 func NewPlayerFromEvent(ev events.PlayerAddedEvent) (p Player) {
