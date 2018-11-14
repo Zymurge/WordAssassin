@@ -16,11 +16,11 @@ const (
 type GamePool struct {
 	games 	 map[string]Game
 	mongo 	 persistence.MongoAbstraction
-	players	*PlayerPool
+	players	 PlayerPoolAbstraction
 }
 
 // NewGamePool creates an instance with an initialized pool and pointer to the persistence layer
-func NewGamePool(m persistence.MongoAbstraction, pp *PlayerPool) (result *GamePool) {
+func NewGamePool(m persistence.MongoAbstraction, pp PlayerPoolAbstraction) (result *GamePool) {
 	games := make(map[string]Game, 10)
 	result = &GamePool{
 		games:	games,

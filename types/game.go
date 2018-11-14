@@ -70,7 +70,7 @@ func (g *Game) GetID() string {
 func (g *Game) GetPlayerList(pp *PlayerPool) (result map[string]Player) {
 	// TODO: Create PlayerPool method that fectches all by GameID
 	// result = pp.GetPlayerListForGame(g.GetID())
-	return
+	panic("Not implemented")
 }
 
 // GetStatus translates the status enum
@@ -123,7 +123,7 @@ func (g *Game) SetAllTargets(players []*Player) error {
 	// for each assignment, assign next as target
 	// for each assignment, send target notification -- delay until last in case of issues above to prevent chances
 	//   of false notification
-	return nil
+	return fmt.Errorf("Not implemented")
 }	
 
 // ValidDictionary checks for the existence and proper format of a KillDictionary

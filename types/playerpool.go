@@ -5,6 +5,12 @@ import (
 	persistence "wordassassin/persistence"
 )
 
+// PlayerPoolAbstraction provides abstraction for testing PlayerPool dependencies
+type PlayerPoolAbstraction interface {
+	GetPlayerByID(searchid string) (*Player, error)
+	GetAllPlayersInGame(gameid string) ([]*Player, error)
+}
+
 const (
 	// PlayersCollection const for the mongo collection to hold all player records
 	PlayersCollection string = "players"
