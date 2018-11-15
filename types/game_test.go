@@ -11,13 +11,14 @@ import (
 )
 
 func TestGame(t *testing.T) {
-	ev, err := events.NewGameCreatedEvent("bigape", "@King.Kong", "bananas.txt", "Jane")
-//	dummyPP := &PlayerPool{}
+	expectedID := "bigape"
+	ev, err := events.NewGameCreatedEvent(expectedID, "@King.Kong", "bananas.txt", "Jane")
+	mockPP := &MockPlayerPool{}
 	require.NoError(t, err, "Gotta get the game event built first")
 	actual := NewGameFromEvent(ev)
 	t.Run("Validate New Game", func(t *testing.T) {
 		require.NotNil(t, actual, "Failed to instantiate")
-		require.Equal(t, ev.GetID(), actual.ID)
+		require.Equal(t, expectedID, actual.ID)
 		require.Equal(t, ev.GetTimeCreated(), actual.TimeCreated)
 		require.Equal(t, ev.GameCreator, actual.GameCreator)
 		require.Equal(t, ev.KillDictionary, actual.KillDictionary)
@@ -47,16 +48,22 @@ func TestGame(t *testing.T) {
 		require.Contains(t, actualStatus, "Game Status for bigape")
 		require.Contains(t, actualStatus, "Status: starting")
 	})
-	t.Run("Start", func(t *testing.T) {
-		youCanStartMeUp := NewGameFromEvent(ev)
-		youCanStartMeUp.StartPlayers = 13
-		players := generatePlayers(youCanStartMeUp.ID, 13)
-		err := youCanStartMeUp.Start(players)
-		require.NoErrorf(t, err, "Didn't want to see this: %s", err)
-		require.Equal(t, Playing, youCanStartMeUp.Status)
-		actualStatus := youCanStartMeUp.GetStatus()
-		require.Equal(t, "playing", actualStatus)
-		// TODO: find a way to validate that timestamp was set to now
+	// t.Run("Start", func(t *testing.T) {
+	// 	youCanStartMeUp := NewGameFromEvent(ev)
+	// 	youCanStartMeUp.StartPlayers = 13
+	// 	players := generatePlayers(youCanStartMeUp.ID, 13)
+	// 	err := youCanStartMeUp.Start(players)
+	// 	require.NoErrorf(t, err, "Didn't want to see this: %s", err)
+	// 	require.Equal(t, Playing, youCanStartMeUp.Status)
+	// 	actualStatus := youCanStartMeUp.GetStatus()
+	// 	require.Equal(t, "playing", actualStatus)
+	// 	// TODO: find a way to validate that timestamp was set to now
+	// })
+	t.Run("GetAllPlayersInPool", func(t *testing.T) {
+		mockPP.playersToReturn = generatePlayers(expectedID, 5)
+		result := actual.GetPlayerList(mockPP)
+		require.NotNil(t, result)
+		require.Equal(t, 5, len(result))
 	})
 }
 

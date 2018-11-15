@@ -67,10 +67,19 @@ func (g *Game) GetID() string {
 }
 
 // GetPlayerList fetches a map of players from the player pool for this game keyed by ID
-func (g *Game) GetPlayerList(pp *PlayerPool) (result map[string]Player) {
+func (g *Game) GetPlayerList(pp *MockPlayerPool) (result map[string]*Player) {
 	// TODO: Create PlayerPool method that fectches all by GameID
-	// result = pp.GetPlayerListForGame(g.GetID())
-	panic("Not implemented")
+	if list, err := pp.GetAllPlayersInGame(g.GetID()); err == nil {
+		// populate the map from the array
+		result = make(map[string]*Player, len(list))
+		for _, v := range(list) {
+			result[v.GetID()] = v
+		}
+	} else {
+		panic("do something with the error")
+	}
+
+	return
 }
 
 // GetStatus translates the status enum
@@ -110,7 +119,7 @@ func (g *Game) Start(players []*Player) error {
 	g.Status = Playing
 	// Assign first round of targets
 	if err := g.SetAllTargets(players); err != nil {
-		return fmt.Errorf("Failure to set targets for game: %s", g.GetID())
+		return fmt.Errorf("Failure to set targets for game: %s. Error: %v", g.GetID(), err)
 	}
 	// Log what you gotta log -- unless an event is written first
 	return nil
