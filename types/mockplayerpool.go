@@ -17,9 +17,8 @@ func (mpp *MockPlayerPool) GetPlayerByID(searchid string) (*Player, error) {
 
 // GetAllPlayersInGame mock
 func (mpp *MockPlayerPool) GetAllPlayersInGame(gameid string) ([]*Player, error) {
-	if mpp.playersToReturn != nil {
-		return mpp.playersToReturn, nil
-	} else {
+	if mpp.playersToReturn == nil {
 		return nil, fmt.Errorf("Mocked error")
 	}
+	return mpp.playersToReturn, nil
 }

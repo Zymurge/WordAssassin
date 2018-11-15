@@ -48,6 +48,7 @@ func TestGame(t *testing.T) {
 		require.Contains(t, actualStatus, "Game Status for bigape")
 		require.Contains(t, actualStatus, "Status: starting")
 	})
+	// TODO: uncomment when Start method is implemented
 	// t.Run("Start", func(t *testing.T) {
 	// 	youCanStartMeUp := NewGameFromEvent(ev)
 	// 	youCanStartMeUp.StartPlayers = 13
