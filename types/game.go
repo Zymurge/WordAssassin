@@ -68,7 +68,6 @@ func (g *Game) GetID() string {
 
 // GetPlayerList fetches a map of players from the player pool for this game keyed by ID
 func (g *Game) GetPlayerList(pp *MockPlayerPool) (result map[string]*Player) {
-	// TODO: Create PlayerPool method that fectches all by GameID
 	if list, err := pp.GetAllPlayersInGame(g.GetID()); err == nil {
 		// populate the map from the array
 		result = make(map[string]*Player, len(list))

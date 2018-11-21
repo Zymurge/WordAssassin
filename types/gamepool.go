@@ -115,9 +115,10 @@ func (pool *GamePool) StartGame(gameid string, slackid string) (err error) {
 		err = fmt.Errorf("GameID: %s cannot be started by non-creator. %s tried though", gameid, slackid)
 		return
 	}
-
-	// TODO: get list of players for this game
-	players := []*Player{}
+	var players []*Player
+	if players, err = pool.players.GetAllPlayersInGame(game.GetID()); err != nil {
+		panic("Error on GetAllPlayersInGame")
+	}
 	return game.Start(players)
 }
 
