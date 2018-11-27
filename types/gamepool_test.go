@@ -12,7 +12,7 @@ import (
 
 func TestNewGamePool(t *testing.T) {
 	// Create pool with some pre-existing games to be rehydrated during construction
-	target, _ := getGamePoolWithMockMongo( t, 
+	target, _ := getGamePoolWithMockMongo( t, nil,
 		&Game{
 			ID:				"Mock1",
 			TimeCreated:	time.Now(),
@@ -41,13 +41,13 @@ func TestNewGamePool(t *testing.T) {
 
 func TestNewGamePoolWithEmptyPreexistingList(t *testing.T) {
 	// Create pool with some pre-existing games to be rehydrated during construction
-	target, _ := getGamePoolWithMockMongo( t )
+	target, _ := getGamePoolWithMockMongo( t, nil )
 	require.NotNil(t, target)
 }
 
 func TestAllGetGameFunc(t *testing.T) {
 	// Setup
-	target, _ := getGamePoolWithMockMongo(t)
+	target, _ := getGamePoolWithMockMongo(t, nil)
 	require.NotNil(t, target)
 	// Note: the test relies on sort orders by creation time for the final validation. Hence, the sleeps
 	// to get past something where it wasn't always guaranteed to run in the add sequence ???
@@ -79,7 +79,7 @@ func TestAllGetGameFunc(t *testing.T) {
 }
 
 func TestAddGame(t *testing.T) {
-	target, _ := getGamePoolWithMockMongo(t)
+	target, _ := getGamePoolWithMockMongo(t, nil)
 	t.Run("Positive", func(t *testing.T) {
 		addGameToPool(t, target, "add1", "test", "", "youshallnot", 0)
 	})
@@ -105,7 +105,6 @@ func TestAddGame(t *testing.T) {
 }
 
 func TestReconstitutePool(t *testing.T) {
-//	dummyPP := &PlayerPool{}
 	g0 := NewGameFromEvent(events.NewGameCreatedInline("recon1", "testes", "killme", "Donner"))
 	g1 := NewGameFromEvent(events.NewGameCreatedInline("recon2", "testes", "killme", "Donner"))
 	g2 := NewGameFromEvent(events.NewGameCreatedInline("recon3", "testes", "killme", "Donner"))
@@ -113,7 +112,7 @@ func TestReconstitutePool(t *testing.T) {
 	eventsIn := []Game{ g0, g1, g2, g3 }
 
 	t.Run("Positive", func(t *testing.T) {
-		target, _ := getGamePoolWithMockMongo(t)
+		target, _ := getGamePoolWithMockMongo(t, nil)
 		err := target.ReconstitutePool(eventsIn[:])
 		require.NoError(t, err, "Expect success to be, well, successful")
 		expected := "recon3"
@@ -124,7 +123,7 @@ func TestReconstitutePool(t *testing.T) {
 	t.Run("DuplicateErrors", func(t *testing.T) {
 		// create new pool with a dup
 		dupEvents := []Game{ g1, g2, g1, g3, g0 }
-		target, _ := getGamePoolWithMockMongo(t)
+		target, _ := getGamePoolWithMockMongo(t, nil)
 		err := target.ReconstitutePool(dupEvents[:])
 		require.Error(t, err, "Should toss out an error for a duplicate")
 		require.Contains(t, err.Error(), "duplicate", "Want to see that word in the error msg")
@@ -132,30 +131,27 @@ func TestReconstitutePool(t *testing.T) {
 }
 
 func TestStartGame(t *testing.T) {
-	// Setup: create gamepool, playerpool, a game and some players for the game in the pool
+	// Setup: create a game, some players, a playerpool (mock) and finally the gamepool
 	myGameID := "add1"
 	myCreator := "@daStarter"
-	// Create a pool of players with incremental attributes
-	// FYI: a valid game currently requires 5 players to start
+	myGame := &Game{
+		ID:				myGameID,
+		TimeCreated:	time.Now(),
+		GameCreator:	myCreator,
+		KillDictionary:	"wordz",
+		Status:			Starting,
+		Passcode:		"MickJ",
+		// FYI: a valid game currently requires at least 5 players to start
+		StartPlayers:	6,
+	}
 	players := makePlayerList(t, myGameID, 6)
 	mockPP := MockPlayerPool{ playersToReturn: players }
-	// Create the mockmongo session ... 
-	// TODO: enhance the helper method to optionally take a PlayerPool mock, and deprecate this multiline setup
-	mm := &persistence.MockMongoSession{}
-	mm.ConnectMode = "positive"
-	mm.WriteMode = "positive"
-	mm.QueryMode = "positive"
-	// mm.FetchResults = existingGames
-	// Create the GamePool using the mocks
-	target := NewGamePool(mm, mockPP)
-	addGameToPool(t, target, myGameID, myCreator, "", "youshallnot", 6)
-	actualGame, ok := target.GetGame(myGameID)
-	require.True(t, ok, "Error getting back the mapped game")
+	target, _ := getGamePoolWithMockMongo(t, mockPP, myGame)
 
 	t.Run("Positive", func(t *testing.T){
 		err := target.StartGame(myGameID, myCreator)
 		require.NoError(t, err)
-		require.Equal(t, Playing, actualGame.Status, "Once started, the game should have the correct status")
+		require.Equal(t, Playing, myGame.Status, "Once started, the game should have the correct status")
 	})
 	// game doesn't exists
 	// game in correct state for start
@@ -166,16 +162,19 @@ func TestStartGame(t *testing.T) {
 
 //** Helper functions **//
 
-// getGamePoolWithMockMongo creates a GamePool with a preset mock mongo and all positive mock behaviors
-func getGamePoolWithMockMongo(t *testing.T, existingGames... persistence.Persistable) (target *GamePool, mm *persistence.MockMongoSession) {
+// getGamePoolWithMockMongo creates a GamePool with a preset mock mongo set for all positive mock behaviors
+// uses either the passed in PlayerPoolAbstraction, or if nil, creates a default instance of PlayerPool
+func getGamePoolWithMockMongo(t *testing.T, pp PlayerPoolAbstraction, existingGames... persistence.Persistable) (target *GamePool, mm *persistence.MockMongoSession) {
 	mm = &persistence.MockMongoSession{}
-	dummyPP := &PlayerPool{}
+	if pp == nil {
+		pp = &PlayerPool{}
+	}
 	mm.ConnectMode = "positive"
 	mm.WriteMode = "positive"
 	mm.QueryMode = "positive"
 	// pre-existing games need to be added to the mock mongo before NewGamePool is called
 	mm.FetchResults = existingGames
-	target = NewGamePool(mm, dummyPP)
+	target = NewGamePool(mm, pp)
 	return target, nil
 }
 
