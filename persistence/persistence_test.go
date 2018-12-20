@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/globalsign/mgo"
-	"github.com/mongodb/mongo-go-driver/bson"
+	bson "github.com/mongodb/mongo-go-driver/bson"
+//	bsonx "github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,6 +21,9 @@ const (
 	TestMongoURL   string = "mongodb://localhost:27017"
 	TestDbName     string = "testDB"
 	TestCollection string = "TestCollection"
+	// Static error messasges from mongo
+	ClientDisconnectErrText string = "client is disconnected"
+	TopologyClosedErrText   string = "topology is closed"
 )
 
 type MongoSessionSuite struct {
@@ -102,15 +106,14 @@ func (m *MongoSessionSuite) TestConnectToMongo() {
 	require.NoError(m.T(), err, "Sucessful connect throws no error. Instead we got %s", err)
 }
 
-/* TODO: figure out why a non-mongo URI doesn't error on connect and test accordingly
-// func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
-// 	testMS, err := NewMongoSession("mongodb://Bad.URL", TestDbName, m.logger, 3)
-// 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-// 	err = testMS.ConnectToMongo()
-// 	require.Error(m.T(), err, "Should return an error when the mongo server can't be found")
-// 	require.Containsf(m.T(), err.Error(), "No DB found", "Looking for err message saying it can't find the server. Instead got %s", err)
-// }
-*/
+/* TODO: figure out why a non-mongo URI doesn't error on connect and test accordingly */
+func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
+ 	testMS, err := NewMongoSession("mongodb://Bad.URL", TestDbName, m.logger, 3)
+ 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
+	err = testMS.ConnectToMongo()
+	require.Error(m.T(), err, "Should return an error when the mongo server can't be found")
+	require.Containsf(m.T(), err.Error(), "No DB found", "Looking for err message saying it can't find the server. Instead got %s", err)
+}
 
 func (m *MongoSessionSuite) TestWriteCollection() {
 	var err error
@@ -156,8 +159,8 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 		err = brokenSession.session.Disconnect(context.Background())
 		err = brokenSession.WriteCollection(TestCollection, testEvent)
 		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
+		require.Contains(t, err.Error(), TopologyClosedErrText, "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), TopologyClosedErrText, "Log message should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "WriteCollection", "Log message should inform on source of issue")
 	})
 }
@@ -209,8 +212,8 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 		err = brokenSession.session.Disconnect(context.Background())
 		err = brokenSession.DeleteFromCollection(TestCollection, "any ID will do")
 		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
+		require.Contains(t, err.Error(), ClientDisconnectErrText, "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), ClientDisconnectErrText, "Log message should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "DeleteFromCollection", "Log message should inform on source of issue")
 	})
 }
@@ -273,8 +276,8 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		err = brokenSession.session.Disconnect(context.Background())
 		err = brokenSession.UpdateCollection(TestCollection, testEvent)
 		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), "topology is closed", "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
+		require.Contains(t, err.Error(), ClientDisconnectErrText, "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), TopologyClosedErrText, "Log message should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "UpdateCollection", "Log message should inform on source of issue")
 	})
 }
@@ -318,8 +321,8 @@ func (m *MongoSessionSuite) TestFetchIDFromCollection() {
 		err = brokenSession.session.Disconnect(context.Background())
 		_, fErr := brokenSession.FetchIDFromCollection(TestCollection, testEvent.GetID())
 		require.Error(t, fErr, "Should get an error if changed to unreachable URL")
-		require.Contains(t, fErr.Error(), "topology is closed", "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "topology is closed", "Log message should complain about lack of connectivity")
+		require.Contains(t, fErr.Error(), ClientDisconnectErrText, "Should complain about lack of connectivity")
+		require.Contains(t, logBuf.String(), ClientDisconnectErrText, "Log message should complain about lack of connectivity")
 		require.Contains(t, logBuf.String(), "FetchIDFromCollection", "Log message should inform on source of issue")
 	})
 }
@@ -357,7 +360,6 @@ func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 	require.NotNil(m.T(), testMS)
 
 	m.T().Run("Positive", func(t *testing.T) {
-		//results := make([]Persistable,0)
 		results, fErr := testMS.FetchAllFromCollection(TestCollection)
 		require.NoError(t, fErr, "Successful lookup throws no error. Instead we got %s", fErr)
 		require.NotNil(t, results, "Successful lookup has to actually return something")

@@ -10,69 +10,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
-	"github.com/mongodb/mongo-go-driver/bson"
+//	bson "github.com/mongodb/mongo-go-driver/bson"
+	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 )
-
-func TestMarshalAppendWithRegistry(t *testing.T) {
-	for _, tc := range marshalingTestCases {
-		t.Run(tc.name, func(t *testing.T) {
-			dst := make([]byte, 0, 1024)
-			var reg *bsoncodec.Registry
-			if tc.reg != nil {
-				reg = tc.reg
-			} else {
-				reg = bson.DefaultRegistry
-			}
-			got, err := bson.MarshalAppendWithRegistry(reg, dst, tc.val)
-			noerr(t, err)
-
-			if !bytes.Equal(got, tc.want) {
-				t.Errorf("Bytes are not equal. got %v; want %v", got, tc.want)
-				t.Errorf("Bytes:\n%v\n%v", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestMarshalWithRegistry(t *testing.T) {
-	for _, tc := range marshalingTestCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var reg *bsoncodec.Registry
-			if tc.reg != nil {
-				reg = tc.reg
-			} else {
-				reg = bson.DefaultRegistry
-			}
-			got, err := bson.MarshalWithRegistry(reg, tc.val)
-			noerr(t, err)
-
-			if !bytes.Equal(got, tc.want) {
-				t.Errorf("Bytes are not equal. got %v; want %v", got, tc.want)
-				t.Errorf("Bytes:\n%v\n%v", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestMarshalAppend(t *testing.T) {
-	for _, tc := range marshalingTestCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.reg != nil {
-				t.Skip() // test requires custom registry
-			}
-			dst := make([]byte, 0, 1024)
-			got, err := bson.MarshalAppend(dst, tc.val)
-			noerr(t, err)
-
-			if !bytes.Equal(got, tc.want) {
-				t.Errorf("Bytes are not equal. got %v; want %v", got, tc.want)
-				t.Errorf("Bytes:\n%v\n%v", got, tc.want)
-			}
-		})
-	}
-}
 
 func TestMarshal_roundtripFromBytes(t *testing.T) {
 	before := []byte{
@@ -106,27 +47,28 @@ func TestMarshal_roundtripFromBytes(t *testing.T) {
 		0x0,
 	}
 
-	doc := bson.NewDocument()
-	require.NoError(t, bson.Unmarshal(before, doc))
+	doc := bson.Doc{}
+	require.NoError(t, doc.UnmarshalBSON(before))
 
-	after, err := bson.Marshal(doc)
+	after, err := doc.MarshalBSON()
 	require.NoError(t, err)
 
 	require.True(t, bytes.Equal(before, after))
 }
 
 func TestMarshal_roundtripFromDoc(t *testing.T) {
-	before := bson.NewDocument(
-		bson.EC.String("foo", "bar"),
-		bson.EC.Int32("baz", -27),
-		bson.EC.ArrayFromElements("bing", bson.VC.Null(), bson.VC.Regex("word", "i")),
-	)
+//	arr := []string{"hey", "whassup", "?"}
+	before := bson.Doc {
+		{ "foo", bson.String("bar") },
+		{ "baz", bson.Int32(-27) },
+//		{ "bing", bson.Array(arr) },
+	}
 
-	b, err := bson.Marshal(before)
+	b, err := before.MarshalBSON()
 	require.NoError(t, err)
 
-	after := bson.NewDocument()
-	require.NoError(t, bson.Unmarshal(b, &after))
+	after := bson.Doc{}
+	require.NoError(t, after.UnmarshalBSON(b))
 
 	require.True(t, before.Equal(after))
 } 

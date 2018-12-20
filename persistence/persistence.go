@@ -8,12 +8,13 @@ import (
 	"time"
 	"context"
 
-	"github.com/mongodb/mongo-go-driver/core/connstring"
-	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/mongo"
-	"github.com/mongodb/mongo-go-driver/mongo/clientopt"
+	mongo "github.com/mongodb/mongo-go-driver/mongo"
+//	mongo "github.com/mongodb/mongo-go-driver/x/mongo/driver"
+	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
+//	bson "github.com/mongodb/mongo-go-driver/bson"
+	conn "github.com/mongodb/mongo-go-driver/x/network/connstring"
+	options "github.com/mongodb/mongo-go-driver/mongo/options"
 
-//	"bytes"
 	mgobson "gopkg.in/mgo.v2/bson"
 )
 
@@ -37,7 +38,7 @@ type MongoAbstraction interface {
 	WriteCollection(collectionName string, object Persistable) error
 	UpdateCollection(collectionName string, object Persistable) error
 	FetchIDFromCollection(collectionName string, id string) ([]byte,error)
-	FetchFromCollection(collectionName string, query bson.Document) ([][]byte, error)
+	FetchFromCollection(collectionName string, query bson.Doc) ([][]byte, error)
 	FetchAllFromCollection(collectionName string) ([][]byte, error)
 	DeleteFromCollection(collectionName string, id string) error
 }
@@ -47,7 +48,7 @@ type MongoSession struct {
 	session        *mongo.Client
 	db             *mongo.Database
 	mongoURL       string
-	connStr        connstring.ConnString
+	connStr        conn.ConnString
 	dbName         string
 	timeoutSeconds time.Duration
 	logger         *log.Logger
@@ -77,7 +78,7 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 	if len(overrideTo) > 0 {
 		ms.timeoutSeconds = time.Duration(overrideTo[0]) * time.Second
 	}
-	ms.connStr, err = connstring.Parse(ms.mongoURL)
+	ms.connStr, err = conn.Parse(ms.mongoURL)
 	if err != nil {
 		return
 	}
@@ -86,12 +87,17 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 
 // ConnectToMongo creates a connection to the specified mongodb instance
 func (ms *MongoSession) ConnectToMongo() (err error) {
-	ms.session, err = mongo.Connect(context.Background(), ms.mongoURL, clientopt.ConnectTimeout(ms.timeoutSeconds))
- 	if err != nil { return }
+	opts := options.Client().SetConnectTimeout(ms.timeoutSeconds).SetAppName("wordassassin")
+	ms.session, err = mongo.NewClientWithOptions(ms.mongoURL, opts)
+//	ms.session, err = mongo.Connect(context.Background(), ms.mongoURL, clientopt.ConnectTimeout(ms.timeoutSeconds))
+	if err != nil { return }
+	err = ms.session.Connect(context.Background())
+	if err != nil { return }
 	ms.db = ms.session.Database(ms.dbName)
-	// if n, checkErr := ms.session.ListDatabaseNames( context.Background(),nil); checkErr != nil {
-	//  	err = fmt.Errorf("Validation of connection failed: %s ... And there are %d DBs not there", checkErr.Error(), len(n))
-	// }
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	if checkErr := ms.session.Ping( ctx, nil ); checkErr != nil {
+	  	err = fmt.Errorf("No DB found. Validation of connection failed: %s", checkErr.Error() )
+	}
 	return
 }
 
@@ -138,17 +144,17 @@ func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err erro
 
 	myCollection := ms.db.Collection(coll)
 	var uResult *mongo.UpdateResult
-	var updateDoc *bson.Document
+	var updateDoc bson.Doc
 	if updateBSON,err := getBytes(obj); err != nil {
 		return fmt.Errorf("Fail to Marshal bson: %s", err)
-	} else if updateDoc, err = bson.ReadDocument(updateBSON); err != nil {
+	} else if updateDoc, err = bson.ReadDoc(updateBSON); err != nil {
 		return fmt.Errorf("Fail to create Document: %s", err)
 	} else {
 		uResult, err = myCollection.ReplaceOne(
 			context.Background(),
-			bson.NewDocument(
-				bson.EC.String("_id", obj.GetID()),
-			),
+			bson.Doc{
+				{ "_id", bson.String(obj.GetID()) },
+			},
 			updateDoc,
 		)
 		if err != nil {
@@ -173,13 +179,13 @@ func (ms *MongoSession) FetchIDFromCollection(coll string, id string) (result []
 	}
 
 	myCollection := ms.db.Collection(coll)
-	queryResult := bson.NewDocument()
+	var queryResult bson.Doc
 	err = myCollection.FindOne(
 		context.Background(),
-		bson.NewDocument(
-			bson.EC.String("_id", id),
-		),
-	).Decode(queryResult)
+		bson.Doc{
+			{ "_id", bson.String(id) },
+		},
+	).Decode(&queryResult)
 	if err != nil {
 		ms.logger.Printf("FetchIDFromCollection: %s on Decode attempt for %s", err.Error(), id)
 		return
@@ -191,7 +197,7 @@ func (ms *MongoSession) FetchIDFromCollection(coll string, id string) (result []
 
 // FetchFromCollection fetches the Persistables from the specified collection that match the query Document
 // They are returned in an array of the specified type in sample, which is supplied only for typing purposes
-func (ms *MongoSession) FetchFromCollection(coll string, query bson.Document) (results [][]byte, err error) {
+func (ms *MongoSession) FetchFromCollection(coll string, query bson.Doc) (results [][]byte, err error) {
 	if err := ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("FetchFromCollection: could not establish mongo connection: %s", err)
 		return nil, err
@@ -207,8 +213,8 @@ func (ms *MongoSession) FetchFromCollection(coll string, query bson.Document) (r
 	defer cur.Close(context.Background())
 	
 	for cur.Next(context.Background()) {
-		doc := bson.NewDocument()
-		err = cur.Decode(doc)
+		var doc bson.Doc
+		err = cur.Decode(&doc)
 		if err != nil { 
 			ms.logger.Printf("FetchFromCollection: %s on Decode attempt for %s", err.Error(), doc)
 			return nil, err
@@ -227,7 +233,7 @@ func (ms *MongoSession) FetchFromCollection(coll string, query bson.Document) (r
 // FetchAllFromCollection fetches all the Persistables from the specified collectiont
 // They are returned in an array of the specified type in sample, which is supplied only for typing purposes
 func (ms *MongoSession) FetchAllFromCollection(coll string) (results [][]byte, err error) {
-	return ms.FetchFromCollection(coll, bson.Document{})
+	return ms.FetchFromCollection(coll, bson.Doc{})
 }
 
 // DeleteFromCollection removes the Loc by ID from the specified collection
@@ -242,9 +248,9 @@ func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error)
 	var dResult *mongo.DeleteResult
 	dResult, err = myCollection.DeleteOne(
 		context.Background(),
-		bson.NewDocument(
-			bson.EC.String("_id", id),
-		),
+		bson.Doc{
+			{ "_id", bson.String(id) },
+		},
 	)
 	if err != nil {
 		ms.logger.Printf("DeleteFromCollection: no mongo connection: %s", err)
@@ -257,13 +263,13 @@ func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error)
 }
 
 func (ms *MongoSession) collectionExists(collName string) bool {
-	names, err := ms.db.ListCollections(context.Background(), bson.NewDocument())
+	names, err := ms.db.ListCollections(context.Background(), bson.Doc{})
 	if err != nil {
 		return false
 	}
 
 	for names.Next(context.Background()) {
-		elem := bson.NewDocument()
+		var elem bson.Doc
 		if err := names.Decode(elem); err != nil {
 			log.Fatal(err)
 		}
