@@ -12,7 +12,7 @@ import (
 
 	"github.com/globalsign/mgo"
 	bson "github.com/mongodb/mongo-go-driver/bson"
-//	bsonx "github.com/mongodb/mongo-go-driver/x/bsonx"
+//	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -87,10 +87,19 @@ func (m *MongoSessionSuite) SetupTest() {
 }
 
 func (m *MongoSessionSuite) TestCtorDefaults() {
-	result, err := NewMongoSession("mongodb://testURL", "", m.logger)
+	result, err := NewMongoSession("mongodb://testURL", "", nil)
 	m.NoError(err, "Test failed in creating MongoSession. Err: %s", err)
-	m.EqualValues(DefaultDbName, result.dbName, "DB name should be the default")
-	m.EqualValues(DefaultTimeout, result.timeoutSeconds, "Timeout value should default when not specified")
+	m.Equal(DefaultDbName, result.dbName, "DB name should be the default")
+	m.Equal(DefaultTimeout, result.timeoutSeconds, "Timeout value should default when not specified")
+	m.Equal("MongoSession: ", result.logger.Prefix(), "Logger should default the prefix when no logger passed in")
+}
+
+func (m *MongoSessionSuite) TestCtorNonDefaults() {
+	result, err := NewMongoSession("mongodb://testURL", "aDB", m.logger, 13)
+	m.NoError(err, "Test failed in creating MongoSession. Err: %s", err)
+	m.Equal("aDB", result.dbName, "DB name should be as passed")
+	m.Equal(time.Duration(13000000000), result.timeoutSeconds, "Timeout value should be as passed")
+	m.Equal(m.logger.Prefix(), result.logger.Prefix(), "Logger should use the prefix of passed in logger")
 }
 
 func (m *MongoSessionSuite) TestCtorInvalidConnectionStringThrowsError() {
@@ -99,6 +108,8 @@ func (m *MongoSessionSuite) TestCtorInvalidConnectionStringThrowsError() {
 	require.Containsf(m.T(), err.Error(), "error parsing uri", "Looking for err message saying it can't handle non-mongodb:// fronted URIs. Instead got %s", err)
 }
 
+// TODO: default logger test
+
 func (m *MongoSessionSuite) TestConnectToMongo() {
 	testMS, err := NewMongoSession(TestMongoURL, TestDbName, m.logger)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
@@ -106,7 +117,6 @@ func (m *MongoSessionSuite) TestConnectToMongo() {
 	require.NoError(m.T(), err, "Sucessful connect throws no error. Instead we got %s", err)
 }
 
-/* TODO: figure out why a non-mongo URI doesn't error on connect and test accordingly */
 func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
  	testMS, err := NewMongoSession("mongodb://Bad.URL", TestDbName, m.logger, 3)
  	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
@@ -125,6 +135,8 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
+	err = testMS.ConnectToMongo()
+	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		actual := GenericPersistable{}
@@ -154,14 +166,17 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 		writeCount, _ := m.session.DB(TestDbName).C(testBadCollection).Count()
 		require.True(t, writeCount == 1, "Record should have been written as only entry")
 	})
-	m.T().Run("Dropped connection", func(t *testing.T) {
-		brokenSession, logBuf := GetMongoSessionWithLogger(t)
+	m.T().Run("Dropped connection should recover", func(t *testing.T) {
+		brokenSession, _ := GetMongoSessionWithLogger(t)
 		err = brokenSession.session.Disconnect(context.Background())
-		err = brokenSession.WriteCollection(TestCollection, testEvent)
-		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), TopologyClosedErrText, "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), TopologyClosedErrText, "Log message should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "WriteCollection", "Log message should inform on source of issue")
+		err = brokenSession.WriteCollection(TestCollection, 
+			&GenericPersistable {
+				ID:   "-999",
+				Name: "Someone",
+				ANumber: 13,
+			},
+		)
+		require.NoError(t, err, "Should get an error if changed to unreachable URL")
 	})
 }
 
@@ -176,6 +191,8 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
+	err = testMS.ConnectToMongo()
+	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		err = AddToMongoCollection(t, m.session, TestCollection, testEvent)
@@ -207,14 +224,15 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 		require.Error(t, err, "Should get error message when attempt to access non-existent collection")
 		require.Contains(t, err.Error(), expectedMsg, "Looking for the not found phrase, but got: %s", err)
 	})
-	m.T().Run("Dropped connection", func(t *testing.T) {
-		brokenSession, logBuf := GetMongoSessionWithLogger(t)
+	m.T().Run("Dropped connection should recover", func(t *testing.T) {
+		testID := "any ID will do"
+		expectedMsg := fmt.Sprintf("no documents for id=%s", testID)
+
+		brokenSession, _ := GetMongoSessionWithLogger(t)
 		err = brokenSession.session.Disconnect(context.Background())
-		err = brokenSession.DeleteFromCollection(TestCollection, "any ID will do")
-		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), ClientDisconnectErrText, "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), ClientDisconnectErrText, "Log message should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "DeleteFromCollection", "Log message should inform on source of issue")
+		err = brokenSession.DeleteFromCollection(TestCollection, testID)
+		require.Error(t, err, "Should get an error for missing ID to prove it hit the server")
+		require.Contains(t, err.Error(), expectedMsg, "Should complain about missing ID")
 	})
 }
 
@@ -229,6 +247,8 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
+	err = testMS.ConnectToMongo()
+	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		err = AddToMongoCollection(t, m.session, TestCollection, testEvent)
@@ -271,14 +291,11 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 		require.Error(t, err, "Should get error message when attempt to access non-existent collection")
 		require.Contains(t, err.Error(), "not found", "Looking for message about not found, but got: %s", err)
 	})
-	m.T().Run("Dropped connection", func(t *testing.T) {
-		brokenSession, logBuf := GetMongoSessionWithLogger(t)
+	m.T().Run("Dropped connection recovers", func(t *testing.T) {
+		brokenSession, _ := GetMongoSessionWithLogger(t)
 		err = brokenSession.session.Disconnect(context.Background())
 		err = brokenSession.UpdateCollection(TestCollection, testEvent)
-		require.Error(t, err, "Should get an error if changed to unreachable URL")
-		require.Contains(t, err.Error(), ClientDisconnectErrText, "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), TopologyClosedErrText, "Log message should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "UpdateCollection", "Log message should inform on source of issue")
+		require.NoError(t, err, "Should not get an error on a valid update after reconnect")
 	})
 }
 
@@ -316,14 +333,11 @@ func (m *MongoSessionSuite) TestFetchIDFromCollection() {
 		require.Error(t, fErr, "Missing id should throw an error")
 		require.Contains(t, fErr.Error(), "no documents", "Message should give a clue. Instead it is %s", fErr)
 	})
-	m.T().Run("Dropped connection", func(t *testing.T) {
-		brokenSession, logBuf := GetMongoSessionWithLogger(t)
+	m.T().Run("Dropped connection should recover", func(t *testing.T) {
+		brokenSession, _ := GetMongoSessionWithLogger(t)
 		err = brokenSession.session.Disconnect(context.Background())
 		_, fErr := brokenSession.FetchIDFromCollection(TestCollection, testEvent.GetID())
-		require.Error(t, fErr, "Should get an error if changed to unreachable URL")
-		require.Contains(t, fErr.Error(), ClientDisconnectErrText, "Should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), ClientDisconnectErrText, "Log message should complain about lack of connectivity")
-		require.Contains(t, logBuf.String(), "FetchIDFromCollection", "Log message should inform on source of issue")
+		require.NoError(t, fErr)
 	})
 }
 
@@ -357,7 +371,8 @@ func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 	var testMS *MongoSession
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	require.NotNil(m.T(), testMS)
+	err = testMS.ConnectToMongo()
+	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		results, fErr := testMS.FetchAllFromCollection(TestCollection)

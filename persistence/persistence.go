@@ -73,7 +73,7 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 		ms.dbName = DefaultDbName
 	}
 	if ms.logger == nil {
-		ms.logger = log.New(os.Stdout, "mongoLayer", log.Ldate|log.Ltime)
+		ms.logger = log.New(os.Stdout, "MongoSession: ", log.Ldate|log.Ltime)
 	}
 	if len(overrideTo) > 0 {
 		ms.timeoutSeconds = time.Duration(overrideTo[0]) * time.Second
@@ -82,30 +82,41 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 	if err != nil {
 		return
 	}
+	ms.logger.Printf("New MongoSession established for %s", ms.mongoURL)
 	return
 }
 
 // ConnectToMongo creates a connection to the specified mongodb instance
 func (ms *MongoSession) ConnectToMongo() (err error) {
 	opts := options.Client().SetConnectTimeout(ms.timeoutSeconds).SetAppName("wordassassin")
-	ms.session, err = mongo.NewClientWithOptions(ms.mongoURL, opts)
-//	ms.session, err = mongo.Connect(context.Background(), ms.mongoURL, clientopt.ConnectTimeout(ms.timeoutSeconds))
-	if err != nil { return }
-	err = ms.session.Connect(context.Background())
+	ms.session, err = mongo.Connect(context.Background(), ms.mongoURL, opts)
 	if err != nil { return }
 	ms.db = ms.session.Database(ms.dbName)
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
-	if checkErr := ms.session.Ping( ctx, nil ); checkErr != nil {
-	  	err = fmt.Errorf("No DB found. Validation of connection failed: %s", checkErr.Error() )
-	}
+	err = ms.CheckConnection()
 	return
 }
 
 // CheckAndReconnect ensures that there is an active DB connection to mongo. Attempts to reestablish connection if needed
 func (ms *MongoSession) CheckAndReconnect() (err error) {
-	if ms.session == nil {
+	if checkErr := ms.CheckConnection(); checkErr != nil {
 		err = ms.ConnectToMongo()
 	}
+	return
+}
+
+// CheckConnection validates if the server can be successfully pinged. Provides the error from the mongo client on false.
+// Uses a hardcoded timeout of 2 seconds. Might want to change that at some point.
+func (ms *MongoSession) CheckConnection() (err error) {
+	if ms.session == nil {
+		panic("CheckConnection called with nil session")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err = ms.session.Ping( ctx, nil )
+	if err != nil && err.Error() == "context deadline exceeded" {
+		err = fmt.Errorf("Ping timed out. No DB found")
+	}
+
 	return
 }
 
@@ -262,21 +273,21 @@ func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error)
 	return
 }
 
-func (ms *MongoSession) collectionExists(collName string) bool {
-	names, err := ms.db.ListCollections(context.Background(), bson.Doc{})
-	if err != nil {
-		return false
-	}
+// func (ms *MongoSession) collectionExists(collName string) bool {
+// 	names, err := ms.db.ListCollections(context.Background(), bson.Doc{})
+// 	if err != nil {
+// 		return false
+// 	}
 
-	for names.Next(context.Background()) {
-		var elem bson.Doc
-		if err := names.Decode(elem); err != nil {
-			log.Fatal(err)
-		}
-		if elem.Lookup("name").StringValue() == collName {
-			return true
-		}
-	}
+// 	for names.Next(context.Background()) {
+// 		var elem bson.Doc
+// 		if err := names.Decode(elem); err != nil {
+// 			log.Fatal(err)
+// 		}
+// 		if elem.Lookup("name").StringValue() == collName {
+// 			return true
+// 		}
+// 	}
 
-	return false
-}
+// 	return false
+// }
