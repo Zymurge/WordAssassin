@@ -12,7 +12,6 @@ import (
 
 	"github.com/globalsign/mgo"
 	bson "github.com/mongodb/mongo-go-driver/bson"
-//	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -274,7 +273,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 
 		err = testMS.UpdateCollection(TestCollection, badIDEvent)
 		require.Error(t, err, "Missing ID should error on update")
-		require.Contains(t, err.Error(), "not found", "Looking for message about ID missing, but got: %s", err)
+		require.Contains(t, err.Error(), "no documents", "Looking for message about ID missing, but got: %s", err)
 	})
 	m.T().Run("CollectionNotExist", func(t *testing.T) {
 		// ensure that the target collection does not exist by iterating through all and deleting if found
@@ -289,7 +288,7 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 
 		err = testMS.UpdateCollection(testBadCollection, testEvent)
 		require.Error(t, err, "Should get error message when attempt to access non-existent collection")
-		require.Contains(t, err.Error(), "not found", "Looking for message about not found, but got: %s", err)
+		require.Contains(t, err.Error(), "no documents", "Looking for message about not found, but got: %s", err)
 	})
 	m.T().Run("Dropped connection recovers", func(t *testing.T) {
 		brokenSession, _ := GetMongoSessionWithLogger(t)

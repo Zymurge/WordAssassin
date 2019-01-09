@@ -60,6 +60,35 @@ type testArgs struct {
 	mock    	mockControls   // default mock controls
 }
 
+func TestHandlerCtorPositive(t *testing.T) {
+	mongo := dao.NewMockMongoSession()
+	testPPool := types.PlayerPool{}
+	testGPool := types.NewGamePool(mongo, &testPPool)
+	logBuf := &bytes.Buffer{}
+	logLabel := "handler_ctortest: "
+	blog := log.New(logBuf, logLabel, 0)
+	result := NewHandler(testGPool, &testPPool, mongo, blog)
+	require.NotNil(t, result, "Make sure creation worked")
+	require.NotNil(t, result.gPool, "Make sure we have a valid GamePool")
+	require.NotNil(t, result.pPool, "Make sure we have a valid PlayerPool")
+	require.Contains(t, logBuf.String(), logLabel)
+	require.Contains(t, logBuf.String(), "Handler created")
+}
+
+func TestHandlerCtorNilPointers(t *testing.T) {
+	mongo := dao.NewMockMongoSession()
+	testPPool := types.PlayerPool{}
+	testGPool := types.NewGamePool(mongo, &testPPool)
+	logBuf := &bytes.Buffer{}
+	logLabel := "handler_ctortest: "
+	blog := log.New(logBuf, logLabel, 0)
+
+	require.PanicsWithValue(t, "GamePool argument is nil", func(){ NewHandler(nil, &testPPool, mongo, blog) })
+	require.PanicsWithValue(t, "PlayerPool argument is nil", func(){ NewHandler(testGPool, nil, mongo, blog) })
+	require.PanicsWithValue(t, "MongoSession argument is nil", func(){ NewHandler(testGPool, &testPPool, nil, blog) })
+	require.PanicsWithValue(t, "Logger argument is nil", func(){ NewHandler(testGPool, &testPPool, mongo, nil) })
+}
+
 
 // TODO: add log validation to all tests
 /*

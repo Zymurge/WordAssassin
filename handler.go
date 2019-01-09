@@ -22,14 +22,27 @@ type Handler struct {
 }
 
 // NewHandler creates a handler instance using the injected dependencies (hint, hint: they're for testing)
-func NewHandler(gp *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbstraction, l *log.Logger) *Handler {
-	// TODO: validate non-nil injected dependencies and return error
-	return &Handler{
+func NewHandler(gp *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbstraction, l *log.Logger) (h *Handler) {
+	if gp == nil {
+		panic("GamePool argument is nil")
+	}
+	if pp == nil {
+		panic("PlayerPool argument is nil")
+	}
+	if m == nil {
+		panic("MongoSession argument is nil")
+	}
+	if l == nil {
+		panic("Logger argument is nil")
+	}
+	h = &Handler{
 		gPool: gp,
 		pPool: pp,
 		mongo: m,
 		logger: l,
 	}
+	l.Printf("Startup: Handler created")
+	return
 }
 
 // OnGameCreated handles coordination when a game is created for this server.

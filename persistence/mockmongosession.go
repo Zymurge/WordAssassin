@@ -3,7 +3,7 @@ package persistence
 import (
 //	"github.com/mongodb/mongo-go-driver/mongo"
 	bson "github.com/mongodb/mongo-go-driver/bson"
-	bsonx "github.com/mongodb/mongo-go-driver/x/bsonx"
+//	bsonx "github.com/mongodb/mongo-go-driver/x/bsonx"
 //	mongo "github.com/mongodb/mongo-go-driver/x/mongo/driver"
 	"fmt"
 
@@ -96,8 +96,8 @@ func (mm *MockMongoSession) FetchIDFromCollection(collectionName string, id stri
 }
 
 // FetchFromCollection mock. Controlled by mm.QueryMode values 'positive' and 'fail'
-func (mm *MockMongoSession) FetchFromCollection(collectionName string, query bsonx.Doc) (results [][]byte, err error) {
-	//TODO: implement me
+func (mm *MockMongoSession) FetchFromCollection(collectionName string, query bson.M) (results [][]byte, err error) {
+	//TODO: implement FetchFromCollection
 	panic("ack!")
 }
 

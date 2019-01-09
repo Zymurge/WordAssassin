@@ -10,21 +10,11 @@ import (
 
 	mongo "github.com/mongodb/mongo-go-driver/mongo"
 //	mongo "github.com/mongodb/mongo-go-driver/x/mongo/driver"
-	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
-//	bson "github.com/mongodb/mongo-go-driver/bson"
+//	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
+	bson "github.com/mongodb/mongo-go-driver/bson"
 	conn "github.com/mongodb/mongo-go-driver/x/network/connstring"
 	options "github.com/mongodb/mongo-go-driver/mongo/options"
-
-	mgobson "gopkg.in/mgo.v2/bson"
 )
-
-func getBytes(key interface{}) ([]byte, error) {
-    //var buf bytes.Buffer
-	buf, err := mgobson.Marshal(key); if err != nil {
-        return nil, err
-    }
-    return buf, nil
-}
 
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
 type Persistable interface {
@@ -38,7 +28,7 @@ type MongoAbstraction interface {
 	WriteCollection(collectionName string, object Persistable) error
 	UpdateCollection(collectionName string, object Persistable) error
 	FetchIDFromCollection(collectionName string, id string) ([]byte,error)
-	FetchFromCollection(collectionName string, query bson.Doc) ([][]byte, error)
+	FetchFromCollection(collectionName string, query bson.M) ([][]byte, error)
 	FetchAllFromCollection(collectionName string) ([][]byte, error)
 	DeleteFromCollection(collectionName string, id string) error
 }
@@ -154,28 +144,18 @@ func (ms *MongoSession) UpdateCollection(coll string, obj Persistable) (err erro
 	}
 
 	myCollection := ms.db.Collection(coll)
-	var uResult *mongo.UpdateResult
-	var updateDoc bson.Doc
-	if updateBSON,err := getBytes(obj); err != nil {
-		return fmt.Errorf("Fail to Marshal bson: %s", err)
-	} else if updateDoc, err = bson.ReadDoc(updateBSON); err != nil {
-		return fmt.Errorf("Fail to create Document: %s", err)
-	} else {
-		uResult, err = myCollection.ReplaceOne(
-			context.Background(),
-			bson.Doc{
-				{ "_id", bson.String(obj.GetID()) },
-			},
-			updateDoc,
-		)
-		if err != nil {
-			ms.logger.Printf("UpdateCollection: topology is closed on update attempt for %s", obj.GetID())
-			return fmt.Errorf("Fail to update Document: %s", err)
-		}
+	uResult, replaceErr := myCollection.ReplaceOne(
+		context.Background(),
+		bson.M{ "_id": obj.GetID() },
+		obj,
+	)
+	if replaceErr != nil {
+		ms.logger.Printf("UpdateCollection: topology is closed on update attempt for %s", obj.GetID())
+		err = fmt.Errorf("Fail to update Document: %s", replaceErr)
 	}
 	if uResult.MatchedCount == 0 {
-		err = fmt.Errorf("Update failed. %s not found in collection %s", obj.GetID(), coll)
-		ms.logger.Printf("UpdateCollection: %s not found in collection %s", obj.GetID(), coll)
+		ms.logger.Printf("UpdateCollection: no documents for ID=%s in collection %s", obj.GetID(), coll)
+		err = fmt.Errorf("Update failed. no documents for ID=%s in collection %s", obj.GetID(), coll)
 	}
 
 	return
@@ -190,25 +170,22 @@ func (ms *MongoSession) FetchIDFromCollection(coll string, id string) (result []
 	}
 
 	myCollection := ms.db.Collection(coll)
-	var queryResult bson.Doc
+	var queryResult bson.M
 	err = myCollection.FindOne(
 		context.Background(),
-		bson.Doc{
-			{ "_id", bson.String(id) },
-		},
+		bson.M{ "_id": id },
 	).Decode(&queryResult)
 	if err != nil {
 		ms.logger.Printf("FetchIDFromCollection: %s on Decode attempt for %s", err.Error(), id)
 		return
 	}
-	result, err = queryResult.MarshalBSON()
+	result, err = bson.Marshal(queryResult)
 	return
 }
 
-
 // FetchFromCollection fetches the Persistables from the specified collection that match the query Document
 // They are returned in an array of the specified type in sample, which is supplied only for typing purposes
-func (ms *MongoSession) FetchFromCollection(coll string, query bson.Doc) (results [][]byte, err error) {
+func (ms *MongoSession) FetchFromCollection(coll string, query bson.M) (results [][]byte, err error) {
 	if err := ms.CheckAndReconnect(); err != nil {
 		ms.logger.Printf("FetchFromCollection: could not establish mongo connection: %s", err)
 		return nil, err
@@ -224,14 +201,14 @@ func (ms *MongoSession) FetchFromCollection(coll string, query bson.Doc) (result
 	defer cur.Close(context.Background())
 	
 	for cur.Next(context.Background()) {
-		var doc bson.Doc
+		var doc bson.M
 		err = cur.Decode(&doc)
 		if err != nil { 
 			ms.logger.Printf("FetchFromCollection: %s on Decode attempt for %s", err.Error(), doc)
 			return nil, err
 		}
 		var elem []byte
-		elem, err = doc.MarshalBSON()
+		elem, err = bson.Marshal(doc)
 		if err != nil {
 		 	return nil, err
 		}
@@ -241,10 +218,10 @@ func (ms *MongoSession) FetchFromCollection(coll string, query bson.Doc) (result
 	return results, cur.Err()
 }
 
-// FetchAllFromCollection fetches all the Persistables from the specified collectiont
+// FetchAllFromCollection fetches all the Persistables from the specified collection
 // They are returned in an array of the specified type in sample, which is supplied only for typing purposes
 func (ms *MongoSession) FetchAllFromCollection(coll string) (results [][]byte, err error) {
-	return ms.FetchFromCollection(coll, bson.Doc{})
+	return ms.FetchFromCollection(coll, bson.M{})
 }
 
 // DeleteFromCollection removes the Loc by ID from the specified collection
@@ -259,9 +236,7 @@ func (ms *MongoSession) DeleteFromCollection(coll string, id string) (err error)
 	var dResult *mongo.DeleteResult
 	dResult, err = myCollection.DeleteOne(
 		context.Background(),
-		bson.Doc{
-			{ "_id", bson.String(id) },
-		},
+		bson.M{ "_id": id },
 	)
 	if err != nil {
 		ms.logger.Printf("DeleteFromCollection: no mongo connection: %s", err)
