@@ -7,6 +7,14 @@ import (
 	persistence "wordassassin/persistence"
 )
 
+// GamePoolAbstraction provides abstraction for testing GamePool dependencies
+type GamePoolAbstraction interface {
+	AddGame(game Game) error
+	GetGame(id string) (*Game, bool)
+	GetGamesList() []Game
+	StartGame(gameid string, slackid string) error 
+}
+
 const (
 	// GamesCollection const for the mongo collection to hold all game records
 	GamesCollection    string = "games"
@@ -14,14 +22,14 @@ const (
 
 // GamePool manages the collection of games in a running server
 type GamePool struct {
-	games 	 map[string]Game
+	games 	 map[string]*Game
 	mongo 	 persistence.MongoAbstraction
 	players	 PlayerPoolAbstraction
 }
 
 // NewGamePool creates an instance with an initialized pool and pointer to the persistence layer
 func NewGamePool(m persistence.MongoAbstraction, pp PlayerPoolAbstraction) (result *GamePool) {
-	games := make(map[string]Game, 10)
+	games := make(map[string]*Game, 10)
 	result = &GamePool{
 		games:	games,
 		mongo:	m,
@@ -40,7 +48,7 @@ func NewGamePool(m persistence.MongoAbstraction, pp PlayerPoolAbstraction) (resu
 }
 
 // AddGame adds a game to this pool and persists the addition. Enforces uniqueness of the Game.ID within the pool
-func (pool *GamePool) AddGame(game Game) error {
+func (pool *GamePool) AddGame(game *Game) error {
 	if pool.games == nil {
 		return fmt.Errorf("uninitialized pool. Use NewGamePool")
 	}
@@ -50,7 +58,7 @@ func (pool *GamePool) AddGame(game Game) error {
 	if err := pool.addGameToMap(game); err != nil {
 		return err
 	}
-	if err := pool.persistGame(&game); err != nil {
+	if err := pool.persistGame(game); err != nil {
 		return err
 	}
 	return nil
@@ -63,13 +71,13 @@ func (pool *GamePool) AddGame(game Game) error {
 func (pool *GamePool) GetGame(id string) (*Game, bool) {
 	game, exists := pool.games[id]
 	if exists {
-		return &game, true
+		return game, true
 	}
 	return nil, false
 }
 
 // GetGamesList gives a list of each game ID separated by a newline. The result are sorted chronologically by created time
-func (pool *GamePool) GetGamesList() (result []Game) {
+func (pool *GamePool) GetGamesList() (result []*Game) {
 	for _, v := range pool.games {
 		result = append(result, v)
 	}
@@ -82,7 +90,7 @@ func (pool *GamePool) GetGamesList() (result []Game) {
 }
 
 // ReconstitutePool rebuilds a new GamePool from an array of Games
-func (pool *GamePool) ReconstitutePool(games []Game) error {
+func (pool *GamePool) ReconstitutePool(games []*Game) error {
 	for _, game := range games {
 		if err := pool.addGameToMap(game); err != nil {
 			return err
@@ -122,7 +130,7 @@ func (pool *GamePool) StartGame(gameid string, slackid string) (err error) {
 	return game.Start(players)
 }
 
-func (pool *GamePool) addGameToMap(game Game) error {
+func (pool *GamePool) addGameToMap(game *Game) error {
 	if _, exists := pool.games[game.GetID()]; exists {
 		return fmt.Errorf("duplicate ID on add: %s", game.GetID())
 	}
@@ -131,10 +139,11 @@ func (pool *GamePool) addGameToMap(game Game) error {
 }
 
 // turn a bson array of bytes into an array of Game instances
-func bytesToGames(inBytes [][]byte) []Game {
-    ret := make([]Game, len(inBytes))
+func bytesToGames(inBytes [][]byte) []*Game {
+    ret := make([]*Game, len(inBytes))
 
     for i, b := range inBytes {
+		ret[i] = &Game{}
         if err := ret[i].Decode(b); err != nil {
 			panic( "bytesToGames: " + err.Error())
 		}

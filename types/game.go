@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"time"
+	"math/rand"
 	"github.com/mongodb/mongo-go-driver/bson"	
 	"wordassassin/types/events"
 )
@@ -114,25 +115,33 @@ func (g *Game) Start(players []*Player) error {
 	if !ValidDictionary(g.KillDictionary) {
 		return fmt.Errorf("Game requires a valid dictionary. %s doesn't meet the critera", g.KillDictionary)
 	}
-	// Set the game status to "running"
-	g.Status = Playing
 	// Assign first round of targets
 	if err := g.SetAllTargets(players); err != nil {
 		return fmt.Errorf("Failure to set targets for game: %s. Error: %v", g.GetID(), err)
 	}
+	// Set the game status to "running"
+	g.Status = Playing
 	// Log what you gotta log -- unless an event is written first
 	return nil
 }
 	
 // SetAllTargets creates the targets and kill words for all players in a list, using this Game's kill dict
 func (g *Game) SetAllTargets(players []*Player) error {
-	// TODO: implement
-	// create a circular linked list of all the players randomly
-	// for each assignment, assign next as target
 	// for each assignment, send target notification -- delay until last in case of issues above to prevent chances
 	//   of false notification
-	return fmt.Errorf("Not implemented")
-}	
+	// Randomly shuffle the players list
+	rand.Shuffle(len(players), func(i, j int) {
+		players[i], players[j] = players[j], players[i]
+	})
+	// Assign as target the next player in the list (post shuffle)
+	for i := 0; i < len(players)-1; i++ {
+		players[i].SetTarget(players[i+1].GetID(), "TODO: assign random word from the killdict")
+	}
+	// Wraparound the assignment from last back to the first player
+	players[len(players)-1].SetTarget(players[0].GetID(), "TODO: assign random word from the killdict")
+
+	return nil
+}
 
 // ValidDictionary checks for the existence and proper format of a KillDictionary
 func ValidDictionary( dict string ) bool {

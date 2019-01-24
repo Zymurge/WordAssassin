@@ -14,7 +14,7 @@ import (
 // Handler contains the context necessary to process events and put everything where it belongs. Needs to be aware
 // of persistence, the game pool, the player pool, etc
 type Handler struct {
-	gPool	 *types.GamePool
+	gPool	 types.GamePoolAbstraction
 	pPool 	 *types.PlayerPool
 	mongo 	 persistence.MongoAbstraction
 	logger   *log.Logger
@@ -22,7 +22,7 @@ type Handler struct {
 }
 
 // NewHandler creates a handler instance using the injected dependencies (hint, hint: they're for testing)
-func NewHandler(gp *types.GamePool, pp *types.PlayerPool, m persistence.MongoAbstraction, l *log.Logger) (h *Handler) {
+func NewHandler(gp types.GamePoolAbstraction, pp *types.PlayerPool, m persistence.MongoAbstraction, l *log.Logger) (h *Handler) {
 	if gp == nil {
 		panic("GamePool argument is nil")
 	}

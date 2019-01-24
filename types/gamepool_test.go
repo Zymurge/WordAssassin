@@ -98,7 +98,7 @@ func TestAddGame(t *testing.T) {
 			KillDictionary: "dict",
 		})
 		//badEvent.ID = ""
-		err := target.AddGame(badEvent)
+		err := target.AddGame(&badEvent)
 		require.Errorf(t, err, "Missing ID should throw")
 		require.Contains(t, err.Error(), "missing ID")
 	})
@@ -109,7 +109,7 @@ func TestReconstitutePool(t *testing.T) {
 	g1 := NewGameFromEvent(events.NewGameCreatedInline("recon2", "testes", "killme", "Donner"))
 	g2 := NewGameFromEvent(events.NewGameCreatedInline("recon3", "testes", "killme", "Donner"))
 	g3 := NewGameFromEvent(events.NewGameCreatedInline("recon4", "testes", "killme", "Donner"))
-	eventsIn := []Game{ g0, g1, g2, g3 }
+	eventsIn := []*Game{ &g0, &g1, &g2, &g3 }
 
 	t.Run("Positive", func(t *testing.T) {
 		target, _ := getGamePoolWithMockMongo(t, nil)
@@ -122,7 +122,7 @@ func TestReconstitutePool(t *testing.T) {
 	})
 	t.Run("DuplicateErrors", func(t *testing.T) {
 		// create new pool with a dup
-		dupEvents := []Game{ g1, g2, g1, g3, g0 }
+		dupEvents := []*Game{ &g1, &g2, &g1, &g3, &g0 }
 		target, _ := getGamePoolWithMockMongo(t, nil)
 		err := target.ReconstitutePool(dupEvents[:])
 		require.Error(t, err, "Should toss out an error for a duplicate")
@@ -149,9 +149,12 @@ func TestStartGame(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, mockPP, myGame)
 
 	t.Run("Positive", func(t *testing.T){
+		// Need to grab the reconsituted instance after restore from mock mongo
+		targetGame, ok := target.GetGame(myGameID)
+		require.True(t, ok, "Couldn't find reconstituted game instance for ID: %s", myGameID)
 		err := target.StartGame(myGameID, myCreator)
 		require.NoError(t, err)
-		require.Equal(t, Playing, myGame.Status, "Once started, the game should have the correct status")
+		require.Equal(t, Playing, targetGame.Status, "Once started, the game should have the correct status")
 	})
 	// game doesn't exists
 	// game in correct state for start
@@ -172,7 +175,9 @@ func getGamePoolWithMockMongo(t *testing.T, pp PlayerPoolAbstraction, existingGa
 	mm.ConnectMode = "positive"
 	mm.WriteMode = "positive"
 	mm.QueryMode = "positive"
-	// pre-existing games need to be added to the mock mongo before NewGamePool is called
+	// pre-existing games need to be added to the mock mongo before NewGamePool is called, since it relies
+	// on reconstitution from the mongo layer for existing games
+	// ** warning: games will be new instances
 	mm.FetchResults = existingGames
 	target = NewGamePool(mm, pp)
 	return target, nil
@@ -183,7 +188,7 @@ func getGamePoolWithMockMongo(t *testing.T, pp PlayerPoolAbstraction, existingGa
 func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string, numPlayers int, expectError ...string) {
 	g1 := NewGameFromEvent(events.NewGameCreatedInline(id, creator, dict, pass))
 	g1.StartPlayers = numPlayers
-	err := pool.AddGame(g1)
+	err := pool.AddGame(&g1)
 	if len(expectError) > 0 {
 		require.Error(t, err, "Wanted to see error adding to the test pool")
 		require.Contains(t, err.Error(), expectError[0], "Wanted to see error adding to the test pool")
