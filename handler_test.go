@@ -3,8 +3,7 @@ package main
 import (
 	"bytes"
 	"log"
-//	"time"
-	
+
 	"testing"
 	"github.com/stretchr/testify/require"
 	
@@ -21,38 +20,39 @@ const (
 )
 
 type mongoControls struct {
-	connectMode string       // positive
-	writeMode   string       // positive
-	returnVal   interface{}  // nil
+	connectMode  string       // positive
+	writeMode    string       // positive
+	returnVal    interface{}  // nil
 }
 
 type gPoolControls struct {
-	gamesList 	types.[]Game
-	writeMode   string       // positive
-	returnVal   interface{}  // nil
+	gamesList 	 *[]types.Game
+	returnVal    interface{}  // nil
+	addGameErr   string       // default: ""``
+	startGameErr string       // default: ""
 }
 
 type gameArgs struct {
-	gameid		string // required
-	creator 	string // required
-	killdict 	string // default: afile.txt
-	passcode 	string // default: melod
-	numPlayers	int    // default: 7
-	status  	types.GameStatus // default: Starting
+	gameid		 string // required
+	creator 	 string // required
+	killdict 	 string // default: afile.txt
+	passcode 	 string // default: melod
+	numPlayers	 int    // default: 7
+	status  	 types.GameStatus // default: Starting
 }
 
 type playerArgs struct {
-	gameid 		string // required
-	slackid 	string // required
-	name		string // default: playerX
-	email		string // default: pX@game.org
+	gameid 		 string // required
+	slackid 	 string // required
+	name		 string // default: playerX
+	email		 string // default: pX@game.org
 }	
 
 // commandArgs used to send alternate args to commands than used to create games and players
 // all are optional
 type commandArgs struct {
-	gameid      string
-	creator     string
+	gameid       string
+	creator      string
 }
 
 type testArgs struct {
@@ -64,6 +64,7 @@ type testArgs struct {
 	pArgs    	playerArgs     // required for player tests
 	cArgs       commandArgs    // default nil
 	mongoCtrl  	mongoControls  // default mock controls
+	gPoolCtrl	gPoolControls  // default gPool controls
 }
 
 func TestHandlerCtorPositive(t *testing.T) {
@@ -171,7 +172,7 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 */
 func TestHandler_OnGameCreated(t *testing.T) {
 	// TODO: ensure tests for validating non-blank parameters
-	testHandler, mongo, blog := getHandlerWithMocksAndLogger(t)
+	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
 	tests := []testArgs {
 		testArgs {
@@ -242,6 +243,9 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				writeMode: "positive",
 				returnVal: nil,
 			},
+			gPoolCtrl: gPoolControls {
+				addGameErr: "duplicate",
+			},
 			cArgs: commandArgs {
 				gameid: "",
 				creator: "",
@@ -271,7 +275,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 	}
 
 	// Add a game for tests that need a pre-existing id
-	testHandler.gPool.AddGame( types.Game{
+	gPool.AddGame( &types.Game{
 			ID:             "dupe_game",
 			//TimeCreated:    time.Now(),
 			GameCreator:    "@testmaster",
@@ -282,6 +286,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
+			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
 			err := testHandler.OnGameCreated(tt.gArgs.gameid, tt.gArgs.creator, tt.gArgs.killdict, tt.gArgs.passcode)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
@@ -297,7 +302,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 }
 
 func TestHandler_OnGameStarted(t *testing.T) {
-	testHandler, mongo, blog := getHandlerWithMocksAndLogger(t)
+	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
 	tests := []testArgs {
 		testArgs {
@@ -328,7 +333,12 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			mongoCtrl: mongoControls {
 				connectMode: "no connect",
 			},
+			gPoolCtrl: gPoolControls {
+				startGameErr: "mock GamePool error message",
+			},
 		},
+		// TODO: move the following test cases to GamePool.StartGame()
+/*		
 		testArgs {
 			name: "empty creator argument",
 			wantErr: true,
@@ -389,22 +399,21 @@ func TestHandler_OnGameStarted(t *testing.T) {
 				connectMode: "no connect",
 			},
 		},
+	*/
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testGame := newGameFromArgs(tt.gArgs)
-			testHandler.gPool.AddGame(testGame)
+			gPool.AddGame(&testGame)
 			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
+			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
 			err := testHandler.OnGameStarted(tt.cArgs.gameid, tt.cArgs.creator)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
-				actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
-				require.NotNilf(t, exists, "Expected % to exist in the gamepool", tt.gArgs.gameid)
-				require.Equal(t, types.Playing, actual.Status, "Game status should have changed correctly")
 			}
 		})
 	}
@@ -413,21 +422,19 @@ func TestHandler_OnGameStarted(t *testing.T) {
 
 /*** Helpers ***/
 
-func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo *dao.MockMongoSession, logBuf *bytes.Buffer) {
+func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo *dao.MockMongoSession, mockGPool *types.MockGamePool, logBuf *bytes.Buffer) {
 	mockMongo = dao.NewMockMongoSession()
 	testPPool := types.PlayerPool{}
-//	testGPool := types.NewGamePool(mongo, &testPPool)
-	mockGames := []types.Game {
-		types.Game{ ID: "mockity", GameCreator: "God" },
+	mockGames := []*types.Game {
+		&types.Game{ ID: "mockity", GameCreator: "God" },
 	}
-	mockGPool := types.MockGamePool{
+	mockGPool = &types.MockGamePool{
 		GamesToReturn: mockGames,
-		GetGameSuccess: true,
 	}
 	logBuf = &bytes.Buffer{}
 	logLabel := "handler_test: "
 	blog := log.New(logBuf, logLabel, 0)
-	testHandler = NewHandler(&mockGPool, &testPPool, mockMongo, blog)
+	testHandler = NewHandler(mockGPool, &testPPool, mockMongo, blog)
 	require.NotNil(t, testHandler, "Make sure creation worked")
 	require.NotNil(t, testHandler.gPool, "Make sure we have a valid GamePool")
 	require.NotNil(t, testHandler.pPool, "Make sure we have a valid PlayerPool")
@@ -453,6 +460,12 @@ func newGameFromArgs(args gameArgs) types.Game {
 
 	return myGame
 }
+
+func setGPoolControlsFromArgs(gpool *types.MockGamePool, args gPoolControls) {
+	gpool.AddGameError = args.addGameErr
+	gpool.StartGameError = args.startGameErr
+}
+
 
 func setMongoControlsFromArgs(mongo *dao.MockMongoSession, args mongoControls) {
 	if args.connectMode == "" {

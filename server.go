@@ -25,7 +25,8 @@ var (
 	mongoURL string
 	logger   *log.Logger
 	mongo    *dao.MongoSession
-	games    *types.GamePool
+//	games    *types.GamePool
+	games    types.GamePoolAbstraction
 	players  types.PlayerPool
 	handler  *Handler
 )

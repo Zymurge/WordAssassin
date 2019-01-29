@@ -6,14 +6,14 @@ import (
 
 // MockGamePool provides a test mock for GamePool dependencies
 type MockGamePool struct {
-	GamesToReturn   []Game
+	GamesToReturn   []*Game
 	AddGameError    string
 	GetGameError    string
 	StartGameError  string
 }
 
 // AddGame mock
-func (mgp *MockGamePool) AddGame(game Game) error {
+func (mgp *MockGamePool) AddGame(game *Game) error {
 	if mgp.AddGameError != "" {
 		return fmt.Errorf(mgp.AddGameError)
 	}
@@ -31,7 +31,7 @@ func (mgp *MockGamePool) GetGame(id string) (*Game, bool) {
 
 
 // GetGamesList mock
-func (mgp *MockGamePool) GetGamesList() []Game {
+func (mgp *MockGamePool) GetGamesList() []*Game {
 	return mgp.GamesToReturn
 }
 

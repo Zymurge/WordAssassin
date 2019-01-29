@@ -9,9 +9,9 @@ import (
 
 // GamePoolAbstraction provides abstraction for testing GamePool dependencies
 type GamePoolAbstraction interface {
-	AddGame(game Game) error
+	AddGame(game *Game) error
 	GetGame(id string) (*Game, bool)
-	GetGamesList() []Game
+	GetGamesList() []*Game
 	StartGame(gameid string, slackid string) error 
 }
 
@@ -85,7 +85,6 @@ func (pool *GamePool) GetGamesList() (result []*Game) {
 		func(i, j int) bool {
 			return result[i].TimeCreated.Before(result[j].TimeCreated)
 		})
-	//	return result[i].GameCreator < result[j].GameCreator } )
 	return
 }
 

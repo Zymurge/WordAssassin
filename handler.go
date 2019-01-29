@@ -72,7 +72,7 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 
 	// Create and register the game object in the game pool
 	game := types.NewGameFromEvent(ev)
-	if gperr := h.gPool.AddGame(game); gperr != nil {
+	if gperr := h.gPool.AddGame(&game); gperr != nil {
 		// Should catch all dups at the event level
 		if strings.Contains(gperr.Error(), "duplicate") {
 			err = fmt.Errorf("Something bad happened. GamePool out of sync with mongo events")
