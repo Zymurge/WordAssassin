@@ -26,10 +26,10 @@ type mongoControls struct {
 }
 
 type gPoolControls struct {
-	gamesList 	 *[]types.Game
-	returnVal    interface{}  // nil
-	addGameErr   string       // default: ""``
-	startGameErr string       // default: ""
+	gamesList		*[]types.Game
+	returnVal		interface{}  // nil
+	addGameErr 		string       // default: ""
+	startGameErr	string       // default: ""
 }
 
 type gameArgs struct {
@@ -171,43 +171,73 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 }
 */
 func TestHandler_OnGameCreated(t *testing.T) {
-	// TODO: ensure tests for validating non-blank parameters
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
 	tests := []testArgs {
-		testArgs {
-			name: "positive",
+		testArgs { name: "positive",
 			wantErr: false,
 			gArgs: gameArgs {
 				gameid: "game1",
 				creator: "@fred",
 				killdict: "notBlank",
 				passcode: "notBlank",
-				numPlayers: 2,
 			},
 			cArgs: commandArgs {
 				gameid: "game1",
 				creator: "@fred",
 			},
 		},
-		testArgs {
-			name: "empty gameID argument",
+		testArgs { name: "empty gameID argument",
 			wantErr: true,
 			errText: "with blank gameid",
 			gArgs: gameArgs {
 				gameid: "",
-				creator: "@someone",
+				creator: "@notblank",
 				killdict: "notBlank",
 				passcode: "notBlank",
-				numPlayers: 3,
-			},
-			cArgs: commandArgs {
-				gameid: "",
-				creator: "",
 			},
 		},
-		testArgs {
-			name: "duplicate gameID (at mongo)",
+		testArgs { name: "empty creator argument",
+			wantErr: true,
+			errText: "with blank creator",
+			gArgs: gameArgs {
+				gameid: "notblank",
+				creator: "",
+				killdict: "notBlank",
+				passcode: "notBlank",
+			},
+		},
+		testArgs { name: "empty killdict argument",
+			wantErr: true,
+			errText: "with blank killdict",
+			gArgs: gameArgs {
+				gameid: "notblank",
+				creator: "@notblank",
+				killdict: "",
+				passcode: "notBlank",
+			},
+		},
+		testArgs { name: "empty passcode argument",
+			wantErr: true,
+			errText: "with blank passcode",
+			gArgs: gameArgs {
+				gameid: "notblank",
+				creator: "@notblank",
+				killdict: "notBlank",
+				passcode: "",
+			},
+		},
+		testArgs { name: "force NewGameCreatedEvent error",
+			wantErr: true,
+			errText: "slackid",
+			gArgs: gameArgs {
+				gameid: "notblank",
+				creator: "invalid: missing @",
+				killdict: "notBlank",
+				passcode: "notBlank",
+			},
+		},
+		testArgs { name: "duplicate gameID (at mongo)",
 			wantErr: true,
 			errText: "dupe_game already created",
 			gArgs: gameArgs {
@@ -215,20 +245,14 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				creator: "@testmaster",
 				killdict: "notBlank",
 				passcode: "notBlank",
-				numPlayers: 2,
 			},
 			mongoCtrl: mongoControls {
 				connectMode: "positive",
 				writeMode: "duplicate",
 				returnVal: nil,
 			},
-			cArgs: commandArgs {
-				gameid: "",
-				creator: "",
-			},
 		},
-		testArgs {
-			name: "duplicate gameID (GamePool)",
+		testArgs { name: "duplicate gameID (GamePool)",
 			wantErr: true,
 			errText: "GamePool out of sync",
 			gArgs: gameArgs {
@@ -236,7 +260,6 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				creator: "@testmaster",
 				killdict: "notBlank",
 				passcode: "notBlank",
-				numPlayers: 2,
 			},
 			mongoCtrl: mongoControls {
 				connectMode: "positive",
@@ -246,13 +269,8 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			gPoolCtrl: gPoolControls {
 				addGameErr: "duplicate",
 			},
-			cArgs: commandArgs {
-				gameid: "",
-				creator: "",
-			},
 		},
-		testArgs {
-			name: "mongo fail",
+		testArgs { name: "mongo fail",
 			wantErr: true,
 			errText: "connect",
 			gArgs: gameArgs {
@@ -260,16 +278,29 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				creator: "n/a",
 				killdict: "notBlank",
 				passcode: "notBlank",
-				numPlayers: 0,
 			},
 			mongoCtrl: mongoControls {
 				connectMode: "no connect",
 				writeMode: "positive",
 				returnVal: nil,
 			},
-			cArgs: commandArgs {
-				gameid: "",
-				creator: "",
+		},
+		testArgs { name: "GamePool unknown error",
+			wantErr: true,
+			errText: "Issue on GameCreated add to GamePool: mock error",
+			gArgs: gameArgs {
+				gameid: "Bob",
+				creator: "@Blahblah",
+				killdict: "notBlank",
+				passcode: "notBlank",
+			},
+			mongoCtrl: mongoControls {
+				connectMode: "positive",
+				writeMode: "positive",
+				returnVal: nil,
+			},
+			gPoolCtrl: gPoolControls {
+				addGameErr: "mock error",
 			},
 		},
 	}

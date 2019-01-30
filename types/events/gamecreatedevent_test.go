@@ -55,6 +55,17 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 			"Not Quite The Game", "", "lyrics", "dragonattack",
 			true, "",
 		},
+		{
+			"Missing GameCreator @ prefix",
+			"some game", "At_less", "theworld", "theworld",
+			true, "must start with '@'",
+		},
+		{
+			"Missing GameCreator 1 or more char after @ prefix",
+			"some game", "@", "theworld", "theworld",
+			true, "must start with '@'",
+		},
+		// TODO: add more robust slackid format validations
 	}
 	for _, tt := range tests {
 		t.Run(tt.testname, func(t *testing.T) {

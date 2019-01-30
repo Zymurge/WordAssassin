@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"time"
+	"regexp"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 )
@@ -18,6 +19,9 @@ type GameCreatedEvent struct {
 }
 
 // NewGameCreatedEvent returns an instance of the event
+// Errors:
+// -- either gameid or creator is blank
+// -- creator is an invalid slack id (must start with @, no spaces)
 func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result GameCreatedEvent, err error) {
 	result = GameCreatedEvent{
 		ID:             gameid,
@@ -30,11 +34,13 @@ func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result Gam
 	// TODO: validate inputs
 	if gameid == "" {
 		err = fmt.Errorf("The request is missing GameID field")
-		return
-	}
-	if creator == "" {
+	} else if creator == "" {
 		err = fmt.Errorf("The request is missing Creator field")
-		return
+	} else {
+		valid_slackid := regexp.MustCompile(`^@[a-zA-Z]+`)
+		if !valid_slackid.MatchString(creator) {
+			err = fmt.Errorf("The request Creator field must start with '@'")
+		}
 	}
 	return
 }

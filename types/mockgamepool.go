@@ -29,7 +29,6 @@ func (mgp *MockGamePool) GetGame(id string) (*Game, bool) {
 	return &result, true
 }
 
-
 // GetGamesList mock
 func (mgp *MockGamePool) GetGamesList() []*Game {
 	return mgp.GamesToReturn
