@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	events "wordassassin/types/events"
 )
 
 func TestPlayerPool(t *testing.T) {
@@ -75,9 +73,8 @@ func TestPlayerPool(t *testing.T) {
 // addPlayerToPool creates and adds a player to the PlayerPool. If an error is expected, it validates that it contains
 // the optional passed in string. Otherwise, validates no error
 func addPlayerToPool(t *testing.T, pool *PlayerPool, gameid, slackid, name, email string, expectError ...string) Player {
-	ev := events.NewPlayerAddedInline(gameid, slackid, name, email)
-	//require.NoErrorf(t, err, "Error on addPlayerToPool creation: %v", err)
-	player := NewPlayerFromEvent(ev)
+	player, pErr := NewPlayer(gameid, slackid, name, email)
+	require.NoErrorf(t, pErr, "Error on creation for addPlayerToPool: %v", pErr)
 	err := pool.AddPlayer(&player)
 	if len(expectError) > 0 {
 		require.Error(t, err, "Wanted to see error adding to the test pool")
