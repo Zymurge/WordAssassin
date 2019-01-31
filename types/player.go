@@ -23,11 +23,20 @@ type Player struct {
 	KillWord	string		`json:"killword" bson:"killword"`
 }
 	
-	// Constants for PlayerStatus
-	const (
-		Alive PlayerStatus = iota + 1
-		Dead
-	)
+// Constants for PlayerStatus
+const (
+	Alive PlayerStatus = iota + 1
+	Dead
+)
+
+// NewPlayer instantiates a player from the limited fields needed for an event
+func NewPlayer(gameid, slackid, name, email string) (p Player, err error) {
+	var ev events.PlayerAddedEvent
+	if ev, err = events.NewPlayerAddedEvent(gameid, slackid, name, email); err == nil {
+		p = NewPlayerFromEvent(ev)
+	}
+	return
+}
 
 // NewPlayerFromEvent instantiates a Player from a PlayerAdedEvent
 func NewPlayerFromEvent(ev events.PlayerAddedEvent) (p Player) {

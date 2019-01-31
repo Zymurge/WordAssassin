@@ -51,19 +51,19 @@ func TestAllGetGameFunc(t *testing.T) {
 	require.NotNil(t, target)
 	// Note: the test relies on sort orders by creation time for the final validation. Hence, the sleeps
 	// to get past something where it wasn't always guaranteed to run in the add sequence ???
-	addGameToPool(t, target, "g1", "alpha", "a file", "pass", 1)
+	addGameToPool(t, target, "g1", "@alpha", "a file", "pass", 1)
 	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "g2", "beta", "a file again", "pass", 1)
+	addGameToPool(t, target, "g2", "@beta", "a file again", "pass", 1)
 	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "g3", "gamma", "a file III", "pass", 1)
+	addGameToPool(t, target, "g3", "@gamma", "a file III", "pass", 1)
 	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "g4", "a different greek letter", "a file strikes back", "pass", 1)
+	addGameToPool(t, target, "g4", "@a different greek letter", "a file strikes back", "pass", 1)
 	t.Run("GetGame: positive", func(t *testing.T) {
 		actual, ok := target.GetGame("g2")
 		require.True(t, ok, "An existing game should say it was fetched")
 		require.NotNil(t, actual, "An existing game should have actually been fetched")
 		require.Equal(t, "g2", actual.ID)
-		require.Equal(t, "beta", actual.GameCreator)
+		require.Equal(t, "@beta", actual.GameCreator)
 	})
 	t.Run("GetGame: not found", func(t *testing.T) {
 		actual, ok := target.GetGame("say what?")
@@ -81,12 +81,12 @@ func TestAllGetGameFunc(t *testing.T) {
 func TestAddGame(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	t.Run("Positive", func(t *testing.T) {
-		addGameToPool(t, target, "add1", "test", "", "youshallnot", 0)
+		addGameToPool(t, target, "add1", "@test", "", "youshallnot", 0)
 	})
 	t.Run("Duplicate ID", func(t *testing.T) {
 		// add the same event twice to trigger dupe ID
-		addGameToPool(t, target, "add2", "testDupe", "", "youshallnot", 0)
-		addGameToPool(t, target, "add2", "testDupe", "", "youshallnot", 0, "duplicate")
+		addGameToPool(t, target, "add2", "@testDupe", "", "youshallnot", 0)
+		addGameToPool(t, target, "add2", "@testDupe", "", "youshallnot", 0, "duplicate")
 	})
 	t.Run("Missing ID", func(t *testing.T) {
 		// create new event and break the ID field
@@ -94,7 +94,7 @@ func TestAddGame(t *testing.T) {
 			ID:             "",
 			TimeCreated:    time.Now(),
 			EventType:      "GameCreatedEvent",
-			GameCreator:    "creator",
+			GameCreator:    "@creator",
 			KillDictionary: "dict",
 		})
 		//badEvent.ID = ""
@@ -105,10 +105,10 @@ func TestAddGame(t *testing.T) {
 }
 
 func TestReconstitutePool(t *testing.T) {
-	g0 := NewGameFromEvent(events.NewGameCreatedInline("recon1", "testes", "killme", "Donner"))
-	g1 := NewGameFromEvent(events.NewGameCreatedInline("recon2", "testes", "killme", "Donner"))
-	g2 := NewGameFromEvent(events.NewGameCreatedInline("recon3", "testes", "killme", "Donner"))
-	g3 := NewGameFromEvent(events.NewGameCreatedInline("recon4", "testes", "killme", "Donner"))
+	g0 := NewGameFromEvent(events.NewGameCreatedInline("recon1", "@testes", "killme", "Donner"))
+	g1 := NewGameFromEvent(events.NewGameCreatedInline("recon2", "@testes", "killme", "Donner"))
+	g2 := NewGameFromEvent(events.NewGameCreatedInline("recon3", "@testes", "killme", "Donner"))
+	g3 := NewGameFromEvent(events.NewGameCreatedInline("recon4", "@testes", "killme", "Donner"))
 	eventsIn := []*Game{ &g0, &g1, &g2, &g3 }
 
 	t.Run("Positive", func(t *testing.T) {
@@ -203,8 +203,11 @@ func makePlayerList(t * testing.T, gameid string, numPlayers int) []*Player {
 		id    := fmt.Sprintf("@name%d", i)
 		name  := fmt.Sprintf("name%d", i)
 		email := fmt.Sprintf("iam%d@mail.org", i)
-		pl := NewPlayerFromEvent(events.NewPlayerAddedInline(gameid, id, name, email))
-		players[i] = &pl
+		if pl, err := NewPlayer(gameid, id, name, email); err != nil {
+			require.NoError(t, err, "Issue creating player for PlayerList")
+		} else {
+			players[i] = &pl
+		}
 	}
 	require.Equal(t, numPlayers, len(players), "Somehow built the wrong number of players")
 	return players

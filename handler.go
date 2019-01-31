@@ -85,8 +85,10 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 	return nil
 }
 
-// OnPlayerAdded handles coordination when a player is added to the game.
-// A unique player ID is created from the combo of gameid and slackid.
+// OnPlayerAdded handles coordination when a player is added to the game:
+// -- A unique player ID is created from the combo of gameid and slackid
+// -- An event is created and persisted to mongo
+// -- The new player is added to the player pool
 // Errors:
 // -- gameid or slackid empty
 // -- gameid not exists and in 'starting' state
@@ -132,6 +134,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	// Persist the pPool, or should it auto persist on state change?
 
 	// I guess it makes sense to increment the game player count at this point.
+	// TODO: move this to the game class on it's AddPlayer method
 	game.StartPlayers++
 	return nil
 }
