@@ -26,9 +26,10 @@ type mongoControls struct {
 }
 
 type gPoolControls struct {
-	gamesList		*[]types.Game
+	gamesList		[]*types.Game
 	returnVal		interface{}  // nil
 	addGameErr 		string       // default: ""
+	canAddErr		string		 // default: ""
 	startGameErr	string       // default: ""
 }
 
@@ -177,35 +178,40 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 	tests := []testArgs {
 		testArgs { name: "positive",
 			wantErr: false,
-			gArgs: gameArgs {
-				gameid: "game1",
-				creator: "@fred",
-				killdict: "notBlank",
-				passcode: "notBlank",
+			pArgs: playerArgs {
+				gameid: "game1", 
+				slackid: "@fred",
+				name: "fred",
+				email: "fred@bedrock.org",
 			},
-			cArgs: commandArgs {
-				gameid: "game1",
-				creator: "@fred",
+			gPoolCtrl: gPoolControls {
+			},
+			mongoCtrl: mongoControls {
+				connectMode: "positive",
+				writeMode: "positive",
+				returnVal: nil,
 			},
 		},
 	}
 	// Add player(s) for tests that require pre-existing players
-	testHandler.pPool.AddPlayer( types.NewPlayer( events.NewPlayerAddedEvent(
-		"targetGame", "@firstdupe", "George", "me@you.net") ) )
+	preexist, err := types.NewPlayer("targetGame", "@firstdupe", "George", "me@you.net")
+	require.NoError(t, err, "Failure to create preexisting player in setup")
+	testHandler.pPool.AddPlayer( &preexist )
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
 			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
-			err := testHandler.OnGameCreated(tt.gArgs.gameid, tt.gArgs.creator, tt.gArgs.killdict, tt.gArgs.passcode)
+			err := testHandler.OnPlayerAdded(tt.pArgs.gameid, tt.pArgs.slackid, tt.pArgs.name, tt.pArgs.email)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
-				actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
-				require.NotNilf(t, exists, "Expected ID: %s to exist in the gamepool", tt.gArgs.gameid)
-				require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
+			// TODO: add validations
+			//	actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
+			//	require.NotNilf(t, exists, "Expected ID: %s to exist in the gamepool", tt.gArgs.gameid)
+			//	require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
 			}
 		})
 	}
@@ -536,7 +542,9 @@ func newGameFromArgs(args gameArgs) types.Game {
 
 func setGPoolControlsFromArgs(gpool *types.MockGamePool, args gPoolControls) {
 	gpool.AddGameError = args.addGameErr
+	gpool.CanAddError = args.canAddErr
 	gpool.StartGameError = args.startGameErr
+	gpool.GamesToReturn = args.gamesList
 }
 
 

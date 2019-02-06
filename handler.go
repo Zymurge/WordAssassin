@@ -95,13 +95,8 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 // -- duplicate player added
 func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email string) (err error) {
 	// First, make sure there's already a game and it's accepting players
-	game, exists := h.gPool.GetGame(gameid)
-	if !exists {
-		err = fmt.Errorf("The requested GameID: %s doesn't exist on this server", gameid)
-		return
-	}
-	if game.Status != types.Starting {
-		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
+	if accepting, acceptErr := h.gPool.CanAddPlayers(gameid); !accepting {
+		err = acceptErr
 		return
 	}
 
@@ -134,7 +129,8 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	// Persist the pPool, or should it auto persist on state change?
 
 	// I guess it makes sense to increment the game player count at this point.
-	// TODO: move this to the game class on it's AddPlayer method
+	// FIXME: create one stop player add for GamePool
+	game, _ := h.gPool.GetGame(gameid)
 	game.StartPlayers++
 	return nil
 }

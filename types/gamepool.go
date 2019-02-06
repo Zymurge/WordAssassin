@@ -10,6 +10,7 @@ import (
 // GamePoolAbstraction provides abstraction for testing GamePool dependencies
 type GamePoolAbstraction interface {
 	AddGame(game *Game) error
+	CanAddPlayers(gameid string) (bool, error)
 	GetGame(id string) (*Game, bool)
 	GetGamesList() []*Game
 	StartGame(gameid string, slackid string) error 
@@ -63,6 +64,21 @@ func (pool *GamePool) AddGame(game *Game) error {
 	}
 	return nil
 }
+
+// CanAddPlayers validates that a game exists and is in the proper state to accept new players
+func (pool *GamePool) CanAddPlayers(gameid string) (accepting bool, err error) {
+	accepting = true
+	game, exists := pool.GetGame(gameid)
+	if !exists {
+		err = fmt.Errorf("The requested GameID: %s doesn't exist on this server", gameid)
+		accepting = false
+	} else if game.Status != Starting {
+		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
+		accepting = false
+	}
+	return
+}
+
 
 // GetGame gets the game specified by the requested ID.
 // Returns:

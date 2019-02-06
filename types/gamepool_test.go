@@ -45,7 +45,7 @@ func TestNewGamePoolWithEmptyPreexistingList(t *testing.T) {
 	require.NotNil(t, target)
 }
 
-func TestAllGetGameFunc(t *testing.T) {
+func TestGetGameFunc(t *testing.T) {
 	// Setup
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	require.NotNil(t, target)
@@ -101,6 +101,36 @@ func TestAddGame(t *testing.T) {
 		err := target.AddGame(&badEvent)
 		require.Errorf(t, err, "Missing ID should throw")
 		require.Contains(t, err.Error(), "missing ID")
+	})
+}
+
+func TestCanAddPlayer(t *testing.T) {
+	target, _ := getGamePoolWithMockMongo(t, nil)
+	require.NotNil(t, target)
+	addGameToPool(t, target, "good", "@alpha", "a file", "pass", 1)
+	time.Sleep(100 * time.Millisecond)
+	addGameToPool(t, target, "playingGame", "@beta", "a file again", "pass", 8)
+	gm, ok := target.GetGame("playingGame")
+	time.Sleep(100 * time.Millisecond)
+	require.True(t, ok, "Failure to fetch game just added")
+	gm.Status = Playing
+
+	t.Run("Positive", func(t *testing.T) {
+		result, err := target.CanAddPlayers("good")
+		require.True(t, result, "Game should be accepting players")
+		require.NoError(t, err, "Error should not be set for true return value")
+	})
+	t.Run("Game not found", func(t *testing.T) {
+		result, err := target.CanAddPlayers("missingGame")
+		require.False(t, result, "Missing game should not be accepting players")
+		require.Error(t, err, "Error should be set for false return value")
+		require.Contains(t, err.Error(), "missingGame doesn't exist", "Error message should mention missing gameid")
+	})
+	t.Run("Game state not Starting", func(t *testing.T) {
+		result, err := target.CanAddPlayers("playingGame")
+		require.False(t, result, "Game not in Starting state should not be accepting players")
+		require.Error(t, err, "Error should be set for false return value")
+		require.Contains(t, err.Error(), "playingGame is not accepting players. State=playing", "Error message should mention incorrect state")
 	})
 }
 
