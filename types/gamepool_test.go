@@ -97,7 +97,6 @@ func TestAddGame(t *testing.T) {
 			GameCreator:    "@creator",
 			KillDictionary: "dict",
 		})
-		//badEvent.ID = ""
 		err := target.AddGame(&badEvent)
 		require.Errorf(t, err, "Missing ID should throw")
 		require.Contains(t, err.Error(), "missing ID")
@@ -107,9 +106,7 @@ func TestAddGame(t *testing.T) {
 func TestAddPlayerToGame(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	require.NotNil(t, target)
-	addGameToPool(t, target, "startingGame", "@playervacuum", "a file", "pass", 1)
-	gm, ok := target.GetGame("startingGame")
-	require.True(t, ok, "Failure to fetch game just added")
+	gm := addGameToPool(t, target, "startingGame", "@playervacuum", "a file", "pass", 1)
 
 	t.Run("Positive", func(t *testing.T) {
 		err := target.AddPlayerToGame(gm.GetID(), &Player{})
@@ -127,11 +124,7 @@ func TestCanAddPlayer(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	require.NotNil(t, target)
 	addGameToPool(t, target, "good", "@alpha", "a file", "pass", 1)
-	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "playingGame", "@beta", "a file again", "pass", 8)
-	gm, ok := target.GetGame("playingGame")
-	time.Sleep(100 * time.Millisecond)
-	require.True(t, ok, "Failure to fetch game just added")
+	gm := addGameToPool(t, target, "playingGame", "@beta", "a file again", "pass", 8)
 	gm.Status = Playing
 
 	t.Run("Positive", func(t *testing.T) {
@@ -197,7 +190,7 @@ func TestStartGame(t *testing.T) {
 	mockPP := MockPlayerPool{ playersToReturn: players }
 	target, _ := getGamePoolWithMockMongo(t, mockPP, myGame)
 
-	t.Run("Positive", func(t *testing.T){
+	t.Run("Positive", func(t *testing.T) {
 		// Need to grab the reconsituted instance after restore from mock mongo
 		targetGame, ok := target.GetGame(myGameID)
 		require.True(t, ok, "Couldn't find reconstituted game instance for ID: %s", myGameID)
@@ -205,9 +198,34 @@ func TestStartGame(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, Playing, targetGame.Status, "Once started, the game should have the correct status")
 	})
-	// game doesn't exists
-	// game in correct state for start
-	// game creator matches
+	t.Run("Blank slackid", func(t *testing.T) {
+		err := target.StartGame("", myCreator)
+		require.Error(t, err, "Should get an error on a blank slack id")
+		require.Contains(t, err.Error(), "requires a non-empty game ID and creator ID", "Tell us why it broke")
+	})
+	t.Run("Blank creator", func(t *testing.T) {
+		err := target.StartGame("whatev", "")
+		require.Error(t, err, "Should get an error on a blank creator")
+		require.Contains(t, err.Error(), "requires a non-empty game ID and creator ID", "Tell us why it broke")
+	})
+	t.Run("Missing game", func(t *testing.T) {
+		err := target.StartGame("Who, me?", myCreator)
+		require.Error(t, err, "Should get an error on the game id check failure")
+		require.Contains(t, err.Error(), "GameID: Who, me? doesn't exist", "Tell us why it broke")
+	})
+	t.Run("Wrong game state", func(t *testing.T) {
+		myStartedGame := addGameToPool(t, target, "startedGame", myCreator, "wordz", "MickJ", 6)
+		myStartedGame.Status = Playing
+		err := target.StartGame("startedGame", myCreator)
+		require.Error(t, err, "Should get an error on starting a game not in the Starting state")
+		require.Contains(t, err.Error(), "GameID: startedGame is not accepting players", "Tell us why it broke")
+	})
+	t.Run("Wrong creator", func(t *testing.T) {
+		addGameToPool(t, target, "lockDown", myCreator, "wordz", "MickJ", 6)
+		err := target.StartGame("lockDown", "@notme")
+		require.Error(t, err, "Should get an error on starting a game with the wrong creator ID")
+		require.Contains(t, err.Error(), "GameID: lockDown cannot be started by non-creator", "Tell us why it broke")
+	})
 	// game start returns an error
 
 }
@@ -234,7 +252,7 @@ func getGamePoolWithMockMongo(t *testing.T, pp PlayerPoolAbstraction, existingGa
 
 // addGameToPool creates and adds a game to the GamePool. If an error is expected, it validates that it contains
 // the optional passed in string. Otherwise, validates no error
-func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string, numPlayers int, expectError ...string) {
+func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string, numPlayers int, expectError ...string) *Game {
 	g1 := NewGameFromEvent(events.NewGameCreatedInline(id, creator, dict, pass))
 	g1.StartPlayers = numPlayers
 	err := pool.AddGame(&g1)
@@ -244,6 +262,7 @@ func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string,
 	} else {
 		require.NoErrorf(t, err, "Didn't want to see error adding to the test pool: %v", err)
 	}
+	return &g1
 }
 
 func makePlayerList(t * testing.T, gameid string, numPlayers int) []*Player {

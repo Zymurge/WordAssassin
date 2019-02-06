@@ -130,32 +130,29 @@ func (pool *GamePool) ReconstitutePool(games []*Game) error {
 // StartGame calls the start sequence for the specified game on behalf of requestor.
 // Only the original game creator is allowed to start a given gameid.
 // Errors returned:
-// -- gameid or slackid empty
+// -- gameid or creator empty
 // -- gameid not exists and in 'starting' state
 // -- slackid does not match the creating slackid
-func (pool *GamePool) StartGame(gameid string, slackid string) (err error) {
-	if gameid == "" || slackid == "" {
-		err = fmt.Errorf("Game start requires a non-empty game ID and slack ID")
-		return
+func (pool *GamePool) StartGame(gameid string, creator string) error {
+	if gameid == "" || creator == "" {
+		return fmt.Errorf("Game start requires a non-empty game ID and creator ID")
 	}
 	game, exists := pool.GetGame(gameid)
 	if !exists {
-		err = fmt.Errorf("The requested GameID: %s doesn't exist on this server", gameid)
-		return
+		return fmt.Errorf("The requested GameID: %s doesn't exist on this server", gameid)
 	}
 	if game.Status != Starting {
-		err = fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
-		return
+		return fmt.Errorf("The requested GameID: %s is not accepting players. State=%s", gameid, game.Status)
 	}
-	if game.GameCreator != slackid {
-		err = fmt.Errorf("GameID: %s cannot be started by non-creator. %s tried though", gameid, slackid)
-		return
+	if game.GameCreator != creator {
+		return fmt.Errorf("GameID: %s cannot be started by non-creator. %s tried though", gameid, creator)
 	}
-	var players []*Player
-	if players, err = pool.players.GetAllPlayersInGame(game.GetID()); err != nil {
+	//var players []*Player
+	if players, err := pool.players.GetAllPlayersInGame(game.GetID()); err != nil {
 		panic("Error on GetAllPlayersInGame")
+	} else {
+		return game.Start(players)
 	}
-	return game.Start(players)
 }
 
 func (pool *GamePool) addGameToMap(game *Game) error {
