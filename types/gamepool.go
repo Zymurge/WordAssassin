@@ -10,6 +10,7 @@ import (
 // GamePoolAbstraction provides abstraction for testing GamePool dependencies
 type GamePoolAbstraction interface {
 	AddGame(game *Game) error
+	AddPlayerToGame(gameid string, player *Player) error
 	CanAddPlayers(gameid string) (bool, error)
 	GetGame(id string) (*Game, bool)
 	GetGamesList() []*Game
@@ -62,6 +63,18 @@ func (pool *GamePool) AddGame(game *Game) error {
 	if err := pool.persistGame(game); err != nil {
 		return err
 	}
+	return nil
+}
+
+// AddPlayerToGame encapsulates whatever needs to happen when associating a new player with a game
+// Note: with the current design, that really only means incrementing the player count, since the linkage
+// is from the player pool to the actual game, and not bi-directional
+func (pool *GamePool) AddPlayerToGame(gameid string, player *Player) error {
+	if accepting, err := pool.CanAddPlayers(gameid); !accepting {
+		return err
+	}
+	game, _ := pool.GetGame(gameid)
+	game.StartPlayers++
 	return nil
 }
 

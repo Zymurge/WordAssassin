@@ -104,6 +104,25 @@ func TestAddGame(t *testing.T) {
 	})
 }
 
+func TestAddPlayerToGame(t *testing.T) {
+	target, _ := getGamePoolWithMockMongo(t, nil)
+	require.NotNil(t, target)
+	addGameToPool(t, target, "startingGame", "@playervacuum", "a file", "pass", 1)
+	gm, ok := target.GetGame("startingGame")
+	require.True(t, ok, "Failure to fetch game just added")
+
+	t.Run("Positive", func(t *testing.T) {
+		err := target.AddPlayerToGame(gm.GetID(), &Player{})
+		require.NoError(t, err, "Positive tests throw no errors")
+		require.Equal(t, gm.StartPlayers, 2, "StartingPlayer count should increment on player add")
+	})
+	t.Run("Missing game", func(t *testing.T) {
+		err := target.AddPlayerToGame("Who, me?", &Player{})
+		require.Error(t, err, "Should get an error on the game id check failure")
+		require.Contains(t, err.Error(), "GameID: Who, me? doesn't exist", "Tell us why it broke")
+	})
+}
+
 func TestCanAddPlayer(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	require.NotNil(t, target)

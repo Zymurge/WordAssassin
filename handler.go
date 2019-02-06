@@ -100,7 +100,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		return
 	}
 
-	// Create and persist and event, unless it's a dupe. Rely on PlayerAddEvent ctor to validate inputs
+	// Create and persist an event, unless it's a dupe. Rely on PlayerAddEvent ctor to validate inputs
 	var ev events.PlayerAddedEvent
 	if ev, err = events.NewPlayerAddedEvent(gameid, slackid, name, email); err != nil {
 		return
@@ -126,12 +126,10 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		err = fmt.Errorf("Issue on AddPlayer add to PlayerPool: %s", hperr.Error())
 		return
 	}
-	// Persist the pPool, or should it auto persist on state change?
+	// Note: Persist the pPool, or should it auto persist on state change?
 
 	// I guess it makes sense to increment the game player count at this point.
-	// FIXME: create one stop player add for GamePool
-	game, _ := h.gPool.GetGame(gameid)
-	game.StartPlayers++
+	err = h.gPool.AddPlayerToGame(gameid, &player)
 	return nil
 }
 
