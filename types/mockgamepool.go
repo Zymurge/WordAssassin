@@ -2,12 +2,15 @@ package types
 
 import (
 	"fmt"
+
+	"wordassassin/types/events"
 )
 
 // MockGamePool provides a test mock for GamePool dependencies
 type MockGamePool struct {
 	GamesToReturn   []*Game
 	AddGameError    string
+	AddPlayerError  string
 	CanAddError     string
 	GetGameError    string
 	StartGameError  string
@@ -20,6 +23,15 @@ func (mgp *MockGamePool) AddGame(game *Game) error {
 	}
 	return nil
 }
+
+// AddPlayerToGame mock
+func (mgp *MockGamePool) AddPlayerToGame(gameid string, ev events.PlayerAddedEvent) error {
+	if mgp.AddPlayerError != "" {
+		return fmt.Errorf(mgp.AddPlayerError)
+	}
+	return nil
+}
+
 
 // CanAddPlayers mock
 // return options true, nil or false, err from CanAddError

@@ -1,16 +1,18 @@
 package types
 
 import (
-//	"github.com/mongodb/mongo-go-driver/bson"
 	"fmt"
 	"sort"
+	"strings"
+	
+	"wordassassin/types/events"
 	persistence "wordassassin/persistence"
 )
 
 // GamePoolAbstraction provides abstraction for testing GamePool dependencies
 type GamePoolAbstraction interface {
 	AddGame(game *Game) error
-	AddPlayerToGame(gameid string, player *Player) error
+	AddPlayerToGame(gameid string, ev events.PlayerAddedEvent) error
 	CanAddPlayers(gameid string) (bool, error)
 	GetGame(id string) (*Game, bool)
 	GetGamesList() []*Game
@@ -69,11 +71,24 @@ func (pool *GamePool) AddGame(game *Game) error {
 // AddPlayerToGame encapsulates whatever needs to happen when associating a new player with a game
 // Note: with the current design, that really only means incrementing the player count, since the linkage
 // is from the player pool to the actual game, and not bi-directional
-func (pool *GamePool) AddPlayerToGame(gameid string, player *Player) error {
+func (pool *GamePool) AddPlayerToGame(gameid string, ev events.PlayerAddedEvent) error {
 	if accepting, err := pool.CanAddPlayers(gameid); !accepting {
 		return err
 	}
 	game, _ := pool.GetGame(gameid)
+
+	// Create the Player instance and add to the PlayerPool
+	player := NewPlayerFromEvent(ev)
+	if addErr := pool.players.AddPlayer(&player); addErr != nil {
+		// Should catch all dups at the event level
+		if strings.Contains(addErr.Error(), "duplicate") {
+			return fmt.Errorf("Something bad happened. PlayerPool out of sync with mongo events")
+			
+		}
+		return fmt.Errorf("Issue on AddPlayer add to PlayerPool: %s", addErr.Error())
+	}
+	// FIXME: Persist the pPool, or should it auto persist on state change?
+
 	game.StartPlayers++
 	return nil
 }

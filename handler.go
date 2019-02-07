@@ -109,28 +109,13 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		// Want to handle a dup write with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
 			err = fmt.Errorf("Player %s already added to game %s", slackid, gameid)
-			return
+		} else {
+			err = fmt.Errorf("Mongodb issue on AddPlayer event write: %s", mongoerr.Error())
 		}
-		err = fmt.Errorf("Mongodb issue on AddPlayer event write: %s", mongoerr.Error())
 		return
 	}
 
-	// Create the Player instance and add to the PlayerPool
-	player := types.NewPlayerFromEvent(ev)
-	if hperr := h.pPool.AddPlayer(&player); hperr != nil {
-		// Should catch all dups at the event level
-		if strings.Contains(hperr.Error(), "duplicate") {
-			err = fmt.Errorf("Something bad happened. PlayerPool out of sync with mongo events")
-			return
-		}
-		err = fmt.Errorf("Issue on AddPlayer add to PlayerPool: %s", hperr.Error())
-		return
-	}
-	// Note: Persist the pPool, or should it auto persist on state change?
-
-	// I guess it makes sense to increment the game player count at this point.
-	err = h.gPool.AddPlayerToGame(gameid, &player)
-	return nil
+	return h.gPool.AddPlayerToGame(gameid, ev)
 }
 
 // OnGameStarted handles activiting a game from the starting stage into playing.

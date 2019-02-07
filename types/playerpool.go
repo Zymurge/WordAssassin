@@ -7,6 +7,7 @@ import (
 
 // PlayerPoolAbstraction provides abstraction for testing PlayerPool dependencies
 type PlayerPoolAbstraction interface {
+	AddPlayer(player *Player) error
 	GetPlayerByID(searchid string) (*Player, error)
 	GetAllPlayersInGame(gameid string) ([]*Player, error)
 }
