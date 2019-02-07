@@ -7,6 +7,15 @@ import (
 // MockPlayerPool provides a test mock for PlayerPool dependencies
 type MockPlayerPool struct {
 	playersToReturn []*Player
+	AddPlayerError  string
+}
+
+// AddPlayer mock
+func (mpp MockPlayerPool) AddPlayer(player *Player) error {
+	if mpp.AddPlayerError != "" {
+		return fmt.Errorf(mpp.AddPlayerError)
+	}
+	return nil
 }
 
 // GetPlayerByID mock

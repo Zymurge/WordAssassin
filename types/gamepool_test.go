@@ -104,19 +104,35 @@ func TestAddGame(t *testing.T) {
 }
 
 func TestAddPlayerToGame(t *testing.T) {
-	target, _ := getGamePoolWithMockMongo(t, nil)
+	myGameID := "playeradderer"
+	mockPP := &MockPlayerPool{}
+	target, _ := getGamePoolWithMockMongo(t, mockPP)
 	require.NotNil(t, target)
-	gm := addGameToPool(t, target, "startingGame", "@playervacuum", "a file", "pass", 1)
+	gm := addGameToPool(t, target, myGameID, "@playervacuum", "a file", "pass", 1)
 
 	t.Run("Positive", func(t *testing.T) {
-		err := target.AddPlayerToGame(gm.GetID(), &Player{})
+		err := target.AddPlayerToGame(myGameID, events.PlayerAddedEvent{ ID: "yo"})
 		require.NoError(t, err, "Positive tests throw no errors")
 		require.Equal(t, gm.StartPlayers, 2, "StartingPlayer count should increment on player add")
 	})
 	t.Run("Missing game", func(t *testing.T) {
-		err := target.AddPlayerToGame("Who, me?", &Player{})
+		err := target.AddPlayerToGame("Who, me?", events.PlayerAddedEvent{})
 		require.Error(t, err, "Should get an error on the game id check failure")
 		require.Contains(t, err.Error(), "GameID: Who, me? doesn't exist", "Tell us why it broke")
+	})
+	t.Run("Duplicate player", func(t *testing.T){
+		mockPP.AddPlayerError = "mock error: duplicate ID"
+		err := target.AddPlayerToGame(myGameID, events.PlayerAddedEvent{ ID: "whatev"})
+		require.Error(t, err, "Should get an error on the game id check failure")
+		expectedErr := fmt.Sprintf("PlayerPool: attempt to add duplicate player: %s in game: %s", "whatev", myGameID)
+		require.Contains(t, err.Error(), expectedErr, "Tell us why it broke")
+	})
+	t.Run("PlayerPool issue (not duplicate)", func(t *testing.T){
+		mockPP.AddPlayerError = "mock error: bad bad stuff happened"
+		err := target.AddPlayerToGame(myGameID, events.PlayerAddedEvent{ ID: "whatev"})
+		require.Error(t, err, "Should get an error on the game id check failure")
+		require.Contains(t, err.Error(), "PlayerPool: ", "Tell us where it broke")
+		require.Contains(t, err.Error(), mockPP.AddPlayerError, "Tell us what broke")
 	})
 }
 

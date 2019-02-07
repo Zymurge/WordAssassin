@@ -47,7 +47,7 @@ func NewGamePool(m persistence.MongoAbstraction, pp PlayerPoolAbstraction) (resu
 	gamesList := bytesToGames(existingBytes)
 	err = result.ReconstitutePool(gamesList)
 	if err != nil { panic(err) }
-	fmt.Printf("NewGamePool: Restored %d games\n", len(result.games))
+	//fmt.Printf("NewGamePool: Restored %d games\n", len(result.games))
 	return
 }
 
@@ -82,10 +82,10 @@ func (pool *GamePool) AddPlayerToGame(gameid string, ev events.PlayerAddedEvent)
 	if addErr := pool.players.AddPlayer(&player); addErr != nil {
 		// Should catch all dups at the event level
 		if strings.Contains(addErr.Error(), "duplicate") {
-			return fmt.Errorf("Something bad happened. PlayerPool out of sync with mongo events")
+			return fmt.Errorf("PlayerPool: attempt to add duplicate player: %s in game: %s", player.GetID(), gameid)
 			
 		}
-		return fmt.Errorf("Issue on AddPlayer add to PlayerPool: %s", addErr.Error())
+		return fmt.Errorf("PlayerPool: issue on AddPlayer add to : %s", addErr.Error())
 	}
 	// FIXME: Persist the pPool, or should it auto persist on state change?
 
