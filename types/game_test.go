@@ -2,6 +2,7 @@ package types
 
 import (
 	"testing"
+	"fmt"
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson"
@@ -36,7 +37,7 @@ func TestGame(t *testing.T) {
 		require.NoError(t, err, "Failed to Decode")
 		require.Equal(t, actual.GetID(), decoded.ID)
 		// TODO: file bug for truncated nsec on timestamp Unmarshal
-		//require.Equal(t, actual.TimeCreated, decoded.TimeCreated)
+		// require.Equal(t, actual.TimeCreated, decoded.TimeCreated)
 	})
 	t.Run("GetStatus", func(t *testing.T) {
 		actualStatus := actual.GetStatus()
@@ -48,23 +49,49 @@ func TestGame(t *testing.T) {
 		require.Contains(t, actualStatus, "Game Status for bigape")
 		require.Contains(t, actualStatus, "Status: starting")
 	})
-	// TODO: uncomment when Start method is implemented
-	// t.Run("Start", func(t *testing.T) {
-	// 	youCanStartMeUp := NewGameFromEvent(ev)
-	// 	youCanStartMeUp.StartPlayers = 13
-	// 	players := generatePlayers(youCanStartMeUp.ID, 13)
-	// 	err := youCanStartMeUp.Start(players)
-	// 	require.NoErrorf(t, err, "Didn't want to see this: %s", err)
-	// 	require.Equal(t, Playing, youCanStartMeUp.Status)
-	// 	actualStatus := youCanStartMeUp.GetStatus()
-	// 	require.Equal(t, "playing", actualStatus)
-	// 	// TODO: find a way to validate that timestamp was set to now
-	// })
 	t.Run("GetAllPlayersInPool", func(t *testing.T) {
 		mockPP.playersToReturn = generatePlayers(expectedID, 5)
 		result := actual.GetPlayerList(mockPP)
 		require.NotNil(t, result)
 		require.Equal(t, 5, len(result))
+	})
+}
+
+func TestStart(t *testing.T) {
+	expectedID := "startableGame"
+	ev, _ := events.NewGameCreatedEvent(expectedID, "@King.Kong", "bananas.txt", "Jane")
+	youCanStartMeUp := NewGameFromEvent(ev)
+	youCanStartMeUp.StartPlayers = 13
+	players := generatePlayers(youCanStartMeUp.ID, 13)
+
+	t.Run("Positive", func(t *testing.T) {
+		err := youCanStartMeUp.Start(players)
+		require.NoErrorf(t, err, "Didn't want to see this: %s", err)
+		require.Equal(t, Playing, youCanStartMeUp.Status)
+		actualStatus := youCanStartMeUp.GetStatus()
+		require.Equal(t, "playing", actualStatus)
+		// TODO: find a way to validate that timestamp was set to now
+	})
+	t.Run("Wrong state", func(t *testing.T) {
+		runningGame := NewGameFromEvent(ev)
+		runningGame.Status = Playing
+		err := runningGame.Start(players)
+		require.Error(t, err, "Expect an error when status is not 'starting'")
+		require.Contains(t, err.Error(), "not in starting")
+	})
+	t.Run("Less than minimum players", func(t *testing.T) {
+		minExpected := 8
+		numPlayers := 5
+		unfilledGame := NewGameFromEvent(ev)
+		unfilledGame.MinimumPlayers = minExpected
+		unfilledGame.StartPlayers = numPlayers
+		err := unfilledGame.Start(players)
+		require.Error(t, err, "Expect an error when status is not 'starting'")
+		expectedMsg := fmt.Sprintf("Game requires %d players. Current count is %d", minExpected, numPlayers)
+		require.Contains(t, err.Error(), expectedMsg)
+	})
+	t.Run("Invalid target list", func(t *testing.T) { // TODO: create a test when valid dictionary logic is defined
+		require.True(t, true)
 	})
 }
 
@@ -77,7 +104,6 @@ func TestGame(t *testing.T) {
 // StartTime      time.Time  `json:"starttime"`
 // StartPlayers   int        `json:"startplayers"`
 // RemainPlayers  int        `json:"remainplayers"`
-
 func generatePlayers(gid string, numPlayers int) (players []*Player) {
 	players = make([]*Player,numPlayers)
 	for i := 0; i < numPlayers; i++ {
