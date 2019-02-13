@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"wordassassin/types/events"
+	events "wordassassin/types/events"
 )
 
 // MockGamePool provides a test mock for GamePool dependencies

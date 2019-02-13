@@ -105,7 +105,7 @@ func main() {
 
 	players = types.PlayerPool{}
 	games = types.NewGamePool(mongo, &players)
-	handler = NewHandler(games, &players, mongo, logger)
+	handler = NewHandler(games, /*&players,*/ mongo, logger)
 
 	//*** Web Server Stuff ***//
 	e := echo.New()

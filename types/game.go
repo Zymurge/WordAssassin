@@ -5,7 +5,8 @@ import (
 	"time"
 	"math/rand"
 	"github.com/mongodb/mongo-go-driver/bson"	
-	"wordassassin/types/events"
+	
+	events "wordassassin/types/events"
 )
 
 // GameStatus allows management of game state

@@ -15,19 +15,15 @@ import (
 // of persistence, the game pool, the player pool, etc
 type Handler struct {
 	gPool	 types.GamePoolAbstraction
-	pPool 	 *types.PlayerPool
 	mongo 	 persistence.MongoAbstraction
 	logger   *log.Logger
 	// other stuff?
 }
 
 // NewHandler creates a handler instance using the injected dependencies (hint, hint: they're for testing)
-func NewHandler(gp types.GamePoolAbstraction, pp *types.PlayerPool, m persistence.MongoAbstraction, l *log.Logger) (h *Handler) {
+func NewHandler(gp types.GamePoolAbstraction, m persistence.MongoAbstraction, l *log.Logger) (h *Handler) {
 	if gp == nil {
 		panic("GamePool argument is nil")
-	}
-	if pp == nil {
-		panic("PlayerPool argument is nil")
 	}
 	if m == nil {
 		panic("MongoSession argument is nil")
@@ -37,7 +33,6 @@ func NewHandler(gp types.GamePoolAbstraction, pp *types.PlayerPool, m persistenc
 	}
 	h = &Handler{
 		gPool: gp,
-		pPool: pp,
 		mongo: m,
 		logger: l,
 	}

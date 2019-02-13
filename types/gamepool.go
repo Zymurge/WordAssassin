@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 	
-	"wordassassin/types/events"
+	events "wordassassin/types/events"
 	persistence "wordassassin/persistence"
 )
 

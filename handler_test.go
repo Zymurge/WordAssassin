@@ -75,10 +75,9 @@ func TestHandlerCtorPositive(t *testing.T) {
 	logBuf := &bytes.Buffer{}
 	logLabel := "handler_ctortest: "
 	blog := log.New(logBuf, logLabel, 0)
-	result := NewHandler(testGPool, &testPPool, mongo, blog)
+	result := NewHandler(testGPool, mongo, blog)
 	require.NotNil(t, result, "Make sure creation worked")
 	require.NotNil(t, result.gPool, "Make sure we have a valid GamePool")
-	require.NotNil(t, result.pPool, "Make sure we have a valid PlayerPool")
 	require.Contains(t, logBuf.String(), logLabel)
 	require.Contains(t, logBuf.String(), "Handler created")
 }
@@ -91,86 +90,10 @@ func TestHandlerCtorNilPointers(t *testing.T) {
 	logLabel := "handler_ctortest: "
 	blog := log.New(logBuf, logLabel, 0)
 
-	require.PanicsWithValue(t, "GamePool argument is nil", func(){ NewHandler(nil, &testPPool, mongo, blog) })
-	require.PanicsWithValue(t, "PlayerPool argument is nil", func(){ NewHandler(testGPool, nil, mongo, blog) })
-	require.PanicsWithValue(t, "MongoSession argument is nil", func(){ NewHandler(testGPool, &testPPool, nil, blog) })
-	require.PanicsWithValue(t, "Logger argument is nil", func(){ NewHandler(testGPool, &testPPool, mongo, nil) })
-}
-
-
-// TODO: add log validation to all tests
-/*
-func TestHandler_OnPlayerAdded(t *testing.T) {
-	testHandler, mongo, blog := getHandlerWithMockMongoAndLogger()
-	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
-	tests := []testArgs {
-		{"positive", testHandler, false, "", gameArgs{},
-			playerArgs{"game1", "@fred", "fred", "fred@bedrock.org"},
-			mongoControls{"positive", "positive", nil}},
-		{"PlayerPool error (from dup)", testHandler, true, "out of sync", gameArgs{},
-			playerArgs{"game1", "@dupe_player", "dupey", "thesameguy@some.org"},
-			mongoControls{"positive", "positive", nil}},
-		{"duplicate slackID (at mongo)", testHandler, true, "@fred already added", gameArgs{},
-			playerArgs{"game1", "@fred", "fred", "fred@bedrock.org"},
-			mongoControls{"positive", "duplicate", nil}},
-		{"empty slackID argument", testHandler, true, "missing SlackID", gameArgs{},
-			playerArgs{"game1", "", "whatev", "bad@email.org"},
-			mongoControls{"positive", "positive", nil}},
-		{"gameID doesn't exist", testHandler, true, "missing_gameid doesn't exist", gameArgs{},
-			playerArgs{"missing_gameid", "@someone", "someone", "bad@email.org"},
-			mongoControls{"positive", "positive", nil}},
-		{"gameID already started", testHandler, true, "not accepting players", gameArgs{},
-			playerArgs{"started_gameid", "@toolate", "lagger", "tomorrow@procrastinate.org"},
-			mongoControls{"positive", "positive", nil}},
-		{"empty GameID argument", testHandler, true, "doesn't exist", gameArgs{},
-			playerArgs{"", "@someone", "someone", "bad@email.org"},
-			mongoControls{"positive", "positive", nil}},
-		{"mongo fail", testHandler, true, "connect", gameArgs{},
-			playerArgs{"game1", "n/a", "n/a", "bad@email.org"},
-			mongoControls{"no connect", "positive", nil}},
+	require.PanicsWithValue(t, "GamePool argument is nil", func(){ NewHandler(nil, mongo, blog) })
+	require.PanicsWithValue(t, "MongoSession argument is nil", func(){ NewHandler(testGPool, nil, blog) })
+	require.PanicsWithValue(t, "Logger argument is nil", func(){ NewHandler(testGPool, mongo, nil) })
 	}
-
-	// Add a game named "game1" for cases that expect it
-	game1 := types.Game{
-		ID:             "game1",
-		TimeCreated:    time.Now(),
-		GameCreator:    "testmaster",
-		KillDictionary: "websters",
-		Status:         types.Starting,
-	}
-	testHandler.gPool.AddGame(game1)
-	// Add a game named "started_gameid" for cases that expect it
-	started := types.Game{
-		ID:             "started_gameid",
-		TimeCreated:    time.Now(),
-		GameCreator:    "testmaster",
-		KillDictionary: "websters",
-		Status:         types.Playing,
-	}
-	testHandler.gPool.AddGame(started)
-	// Add a preexisting player to support duplicate cases
-	dupEv, _ := events.NewPlayerAddedEvent("game1", "@dupe_player", "", "")
-	dupPlayer := types.NewPlayerFromEvent(dupEv)
-	testHandler.pPool.AddPlayer(&dupPlayer)
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mongo.ConnectMode = tt.mongoCtrl.connectMode
-			mongo.WriteMode = tt.mongoCtrl.writeMode
-			err := tt.h.OnPlayerAdded(tt.pArgs.gameid, tt.pArgs.slackid, tt.pArgs.name, tt.pArgs.email)
-			if tt.wantErr {
-				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
-				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
-			} else {
-				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
-				actual, err := testHandler.pPool.GetPlayer(tt.pArgs.gameid, tt.pArgs.slackid)
-				require.NoErrorf(t, err, "Didn't want to see this: %v", err)
-				require.Equal(t, tt.pArgs.name, actual.Name, "Didn't find player added despite success")
-			}
-		})
-	}
-}
-*/
 
 func TestHandler_OnPlayerAdded(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
@@ -194,9 +117,9 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 		},
 	}
 	// Add player(s) for tests that require pre-existing players
-	preexist, err := types.NewPlayer("targetGame", "@firstdupe", "George", "me@you.net")
+	preexist, err := events.NewPlayerAddedEvent("targetGame", "@firstdupe", "George", "me@you.net")
 	require.NoError(t, err, "Failure to create preexisting player in setup")
-	testHandler.pPool.AddPlayer( &preexist )
+	testHandler.gPool.AddPlayerToGame("targetGame", preexist)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -430,21 +353,6 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			cArgs: commandArgs {
 				gameid: "game_filler",
 				creator: "",
-			},
-		},
-		testArgs {
-			name: "game state wrong",
-			wantErr: true,
-			errText: "state", 
-			gArgs: gameArgs {
-				gameid: "I'm running",
-				creator: "@someone",
-				status: types.Playing,
-				numPlayers: 7,
-			},
-			cArgs: commandArgs{
-				gameid: "I'm running",
-				creator: "@someone",
 			},
 		},
 		testArgs {
