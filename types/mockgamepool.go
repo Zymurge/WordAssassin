@@ -40,8 +40,8 @@ func (mgp *MockGamePool) CanAddPlayers(gameid string) (result bool, err error) {
 		result = true
 	} else {
 		result = false
+		err = fmt.Errorf(mgp.CanAddError)
 	}
-	err = fmt.Errorf(mgp.CanAddError)
 	return
 }
 
