@@ -31,7 +31,6 @@ func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result Gam
 		KillDictionary: killdict,
 		Passcode:       passcode,
 	}
-	// TODO: validate inputs
 	if gameid == "" {
 		err = fmt.Errorf("The request is missing GameID field")
 	} else if creator == "" {
