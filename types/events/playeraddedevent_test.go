@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"time"
-	"gopkg.in/mgo.v2/bson"
 
 	"wordassassin/persistence"
+	"wordassassin/slack"
+	
+	"gopkg.in/mgo.v2/bson"
 )
 
 func TestPlayerAddedEventIsPersistable(t * testing.T) {
@@ -37,23 +39,28 @@ func TestNewPlayerAddedEvent_MultiplePermutations(t *testing.T) {
 	}{
 		{
 			"Positive_all",
-			"game1+@player1", "game1", "@player1", "Joe", "joe@wa.com",
+			"game1+Uplayer1", "game1", "Uplayer1", "Joe", "joe@wa.com",
 			false, "", 
 		},
 		{
 			"Positive_blank_optionals",
-			"game1+@player1", "game1", "@player1", "", "",
+			"game1+Uplayer1", "game1", "Uplayer1", "", "",
 			false, "", 
 		},
 		{
 			"No gameid",
-			"missing GameID", "", "@player1", "Joe", "joe@wa.com",
-			true, "",
+			"missing GameID", "", "Uplayer1", "Joe", "joe@wa.com",
+			true, "missing GameID field",
 		},
 		{
 			"No slackid",
 			"missing SlackID", "boo", "", "Joe", "joe@wa.com",
-			true, "",
+			true, "missing SlackID field",
+		},
+		{
+			"Invalid slackid",
+			"bad SlackID", "boo", "@UBADSLACK", "Joe", "joe@wa.com",
+			true, "valid Slack ID",
 		},
 	}
 	for _, tt := range tests {
@@ -66,7 +73,7 @@ func TestNewPlayerAddedEvent_MultiplePermutations(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.ID, got.GetID())
 				require.Equal(t, tt.GameID, got.GameID)
-				require.Equal(t, tt.SlackID, got.SlackID)
+				require.Equal(t, slack.SlackID(tt.SlackID), got.SlackID)
 				require.Equal(t, "PlayerAddedEvent", got.EventType)
 				require.NotNil(t, got.TimeCreated) // can't match a time now
 				require.Equal(t, tt.Name, got.Name)
@@ -78,7 +85,7 @@ func TestNewPlayerAddedEvent_MultiplePermutations(t *testing.T) {
 
 func TestNewPlayerAddedInline_Positive(t *testing.T) {
 	expectedGameID := "inline_game"
-	expectedSlackID := "@inline tester"
+	expectedSlackID := "UINLINETESTER"
 	expectedID := expectedGameID + "+" + expectedSlackID
 	require.NotPanics(t, func(){NewPlayerAddedInline(expectedGameID, expectedSlackID, "some dude", "email@addr.es")} )
 	actual := NewPlayerAddedInline( expectedGameID, expectedSlackID, "some dude", "email@addr.es" )
@@ -109,7 +116,7 @@ func TestPlayerAddedEvent_Decode(t *testing.T) {
 			EventType:		"PlayerAddedEvent",
 			GameID:			"Redemption Song",
 			Name:			"Bob Marley",
-			SlackID:		"@wailers",
+			SlackID:		slack.SlackID("WAILERS"),
 			Email:			"wailer@marley.com",
 		}
 		asBytes, err := bson.Marshal(original)

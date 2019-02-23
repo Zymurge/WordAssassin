@@ -3,44 +3,44 @@ package events
 import (
 	"fmt"
 	"time"
-	"regexp"
 
+	"wordassassin/slack"
 	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 // GameCreatedEvent is created once per game instance
 type GameCreatedEvent struct {
-	ID             string    `json:"id" bson:"_id"`
-	TimeCreated    time.Time `json:"timeCreated"`
-	EventType      string    `json:"eventType"`
-	GameCreator    string    `json:"gameCreator"`
-	KillDictionary string    `json:"killDictionary"`
-	Passcode       string    `json:"passcode" bson:"passcode"`
+	ID             string    	 `json:"id" bson:"_id"`
+	TimeCreated    time.Time 	 `json:"timeCreated"`
+	EventType      string    	 `json:"eventType"`
+	GameCreator    slack.SlackID `json:"gameCreator"`
+	KillDictionary string    	 `json:"killDictionary"`
+	Passcode       string    	 `json:"passcode" bson:"passcode"`
 }
 
 // NewGameCreatedEvent returns an instance of the event
 // Errors:
 // -- either gameid or creator is blank
-// -- creator is an invalid slack id (must start with @, no spaces)
+// -- creator is an invalid slack id (per slack validator)
 func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result GameCreatedEvent, err error) {
-	result = GameCreatedEvent{
-		ID:             gameid,
-		TimeCreated:    time.Now(),
-		EventType:      "GameCreatedEvent",
-		GameCreator:    creator,
-		KillDictionary: killdict,
-		Passcode:       passcode,
-	}
+	var creatorID slack.SlackID
 	if gameid == "" {
 		err = fmt.Errorf("The request is missing GameID field")
 	} else if creator == "" {
 		err = fmt.Errorf("The request is missing Creator field")
-	} else {
-		valid_slackid := regexp.MustCompile(`^@[a-zA-Z]+`)
-		if !valid_slackid.MatchString(creator) {
-			err = fmt.Errorf("The request Creator field must start with '@'")
-		}
+	} else if creatorID, err = slack.New(creator); err != nil {
+		err = fmt.Errorf("Creator is not a valid Slack ID: %v", err)
 	}
+
+	result = GameCreatedEvent{
+		ID:             gameid,
+		TimeCreated:    time.Now(),
+		EventType:      "GameCreatedEvent",
+		GameCreator:    creatorID,
+		KillDictionary: killdict,
+		Passcode:       passcode,
+	}
+
 	return
 }
 

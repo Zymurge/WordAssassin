@@ -9,6 +9,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 
 	"wordassassin/persistence"
+	"wordassassin/slack"
 )
 
 func TestGameCreatedEventIsPersistable(t * testing.T) {
@@ -16,7 +17,7 @@ func TestGameCreatedEventIsPersistable(t * testing.T) {
 		ID:				"I will persist",
 		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.UTC),
 		EventType:		"GameCreatedEvent",
-		GameCreator:	"Methusala",
+		GameCreator:	slack.SlackID("UMMM"),
 		KillDictionary:	"Dirt phrases",
 		Passcode:		"geriatric",
 	}
@@ -37,17 +38,17 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 	}{
 		{
 			"Positive_all",
-			"The Game", "@queen", "lyrics", "dragonattack",
+			"The Game", "UQUEEN", "lyrics", "dragonattack",
 			false, "", 
 		},
 		{
 			"Positive_blank_optionals",
-			"The Game", "@queen", "lyrics", "",
+			"The Game", "UQUEEN", "lyrics", "",
 			false, "", 
 		},
 		{
 			"No gameid",
-			"", "@queen", "lyrics", "dragonattack",
+			"", "UQUEEN", "lyrics", "dragonattack",
 			true, "",
 		},
 		{
@@ -56,16 +57,10 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 			true, "",
 		},
 		{
-			"Missing GameCreator @ prefix",
-			"some game", "At_less", "theworld", "theworld",
-			true, "must start with '@'",
+			"Invalid GameCreator",
+			"some game", "@QUEEN", "theworld", "theworld",
+			true, "Slack ID",
 		},
-		{
-			"Missing GameCreator 1 or more char after @ prefix",
-			"some game", "@", "theworld", "theworld",
-			true, "must start with '@'",
-		},
-		// TODO: add more robust slackid format validations
 	}
 	for _, tt := range tests {
 		t.Run(tt.testname, func(t *testing.T) {
@@ -78,7 +73,7 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 				require.Equal(t, tt.ID, got.GetID())
 				require.Equal(t, "GameCreatedEvent", got.EventType)
 				require.NotNil(t, got.TimeCreated) // can't match a time now
-				require.Equal(t, tt.GameCreator, got.GameCreator)
+				require.Equal(t, slack.SlackID(tt.GameCreator), got.GameCreator)
 				require.Equal(t, tt.KillDictionary, got.KillDictionary)
 				require.Equal(t, tt.Passcode, got.Passcode)
 			}
@@ -88,8 +83,8 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 
 func TestNewGameCreatedInline_Positive(t *testing.T) {
 	expectedGameID := "inline_game"
-	require.NotPanics(t, func(){NewGameCreatedInline(expectedGameID, "@inline creator", "some dude", "email@addr.es")} )
-	actual := NewGameCreatedInline(expectedGameID,  "@inline creator", "some dude", "email@addr.es")
+	require.NotPanics(t, func(){NewGameCreatedInline(expectedGameID, "Uinline", "some dude", "email@addr.es")} )
+	actual := NewGameCreatedInline(expectedGameID, "Uinline", "some dude", "email@addr.es")
 	require.NotNil(t, actual, "Successful creation actually creates something")
 	require.Equal(t, actual.GetID(), expectedGameID)
 }
@@ -103,7 +98,7 @@ func TestGameCreatedEvent_GetTimeCreated(t *testing.T) {
 		ID:				"time check",
 		TimeCreated:	time.Date(2112, time.February, 13, 16, 20, 0, 0, time.Local),
 		EventType:      "GameCreatedEvent",
-		GameCreator:    "@Bob_Marley",
+		GameCreator:    slack.SlackID("UBOBMARLEY"),
 		KillDictionary: "websters",
 	}
 	actual := target.GetTimeCreated()
@@ -116,7 +111,7 @@ func TestGameCreatedEvent_Decode(t *testing.T) {
 		ID:             "testID",
 		TimeCreated:    time.Date(2112, time.November, 13, 16, 20, 0, 0, time.Local),
 		EventType:      "GameCreatedEvent",
-		GameCreator:    "@Bob_Marley",
+		GameCreator:    slack.SlackID("UBOBMARLEY"),
 		KillDictionary: "websters",
 	}
 	asBytes, err := bson.Marshal(original)
