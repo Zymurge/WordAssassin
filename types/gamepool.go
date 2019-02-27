@@ -7,6 +7,7 @@ import (
 	
 	events "wordassassin/types/events"
 	persistence "wordassassin/persistence"
+	"wordassassin/slack"
 )
 
 // GamePoolAbstraction provides abstraction for testing GamePool dependencies
@@ -148,7 +149,7 @@ func (pool *GamePool) ReconstitutePool(games []*Game) error {
 // -- gameid or creator empty
 // -- gameid not exists and in 'starting' state
 // -- slackid does not match the creating slackid
-func (pool *GamePool) StartGame(gameid string, creator string) error {
+func (pool *GamePool) StartGame(gameid string, creator slack.SlackID) error {
 	if gameid == "" || creator == "" {
 		return fmt.Errorf("Game start requires a non-empty game ID and creator ID")
 	}

@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	persistence "wordassassin/persistence"
+	"wordassassin/slack"
 )
 
 // PlayerPoolAbstraction provides abstraction for testing PlayerPool dependencies
@@ -57,8 +58,8 @@ func (pool *PlayerPool) GetPlayerByID(searchid string) (*Player, error) {
 // GetPlayer fetches the player specificed by the given game and slack ID combo. Errors on ID not found.
 // Errors:
 //   ID+slackid not found.
-func (pool *PlayerPool) GetPlayer(gameid, slackid string) (*Player, error) {
-	searchid := gameid + "+" + slackid
+func (pool *PlayerPool) GetPlayer(gameid string, slackid slack.SlackID) (*Player, error) {
+	searchid := gameid + "+" + slackid.ToString()
 	return pool.GetPlayerByID(searchid)
 }
 

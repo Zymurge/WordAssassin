@@ -10,11 +10,11 @@ func TestPlayerPool(t *testing.T) {
 	// Setup
 	target := PlayerPool{}
 	require.NotNil(t, target)
-	p1 := addPlayerToPool(t, &target, "game1", "@Joe", "Joe", "joe@wa.org")
-	p2 := addPlayerToPool(t, &target, "game2", "@Joe", "Joe", "joe@wa.org")
-	addPlayerToPool(t, &target, "game3", "@Joe", "Joe", "joe@wa.org")
-	addPlayerToPool(t, &target, "game1", "@Jim", "Jim", "jim@wa.org")
-	addPlayerToPool(t, &target, "game1", "@Josh", "Josh", "josh@wa.org")
+	p1 := addPlayerToPool(t, &target, "game1", "UJoe", "Joe", "joe@wa.org")
+	p2 := addPlayerToPool(t, &target, "game2", "UJoe", "Joe", "joe@wa.org")
+	addPlayerToPool(t, &target, "game3", "UJoe", "Joe", "joe@wa.org")
+	addPlayerToPool(t, &target, "game1", "UJim", "Jim", "jim@wa.org")
+	addPlayerToPool(t, &target, "game1", "UJosh", "Josh", "josh@wa.org")
 
 	// Execute
 	t.Run("AddPlayer: Duplicate ID", func(t *testing.T) {

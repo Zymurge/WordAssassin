@@ -31,3 +31,17 @@ func New(id string) (sID SlackID, reason error) {
 	return
 }
 
+// NewInline is a test util that creates an instance of SlackID after validating that the string conforms to the Slack standards.
+// It provides a single receiver form. If the string fails validation, the func panics.
+func NewInline(id string) (SlackID) {
+	sID, err := New(id)
+	if(err != nil) {
+		panic(fmt.Sprintf("Error creating SlackID for %s: %v", id, err))
+	}
+	return sID
+}
+
+// ToString provides the slack ID in string form
+func (sID SlackID) ToString() string {
+	return string(sID)
+}

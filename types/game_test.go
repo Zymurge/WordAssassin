@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	events "wordassassin/types/events"
+	"wordassassin/slack"
 )
 
 func TestGame(t *testing.T) {
 	expectedID := "bigape"
-	ev, err := events.NewGameCreatedEvent(expectedID, "@King.Kong", "bananas.txt", "Jane")
+	ev, err := events.NewGameCreatedEvent(expectedID, "UKingKong", "bananas.txt", "Jane")
 	mockPP := &MockPlayerPool{}
 	require.NoError(t, err, "Gotta get the game event built first")
 	actual := NewGameFromEvent(ev)
@@ -59,7 +60,7 @@ func TestGame(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	expectedID := "startableGame"
-	ev, _ := events.NewGameCreatedEvent(expectedID, "@King.Kong", "bananas.txt", "Jane")
+	ev, _ := events.NewGameCreatedEvent(expectedID, "UKingKong", "bananas.txt", "Jane")
 	youCanStartMeUp := NewGameFromEvent(ev)
 	youCanStartMeUp.StartPlayers = 13
 	players := generatePlayers(youCanStartMeUp.ID, 13)
@@ -97,7 +98,7 @@ func TestStart(t *testing.T) {
 
 // ID             string     `json:"id" bson:"_id"`
 // TimeCreated    time.Time  `json:"timeCreated" bson:"timecreated"`
-// GameCreator    string     `json:"gameId" bson:"gameid"`
+// GameCreator    slack.SlackID  `json:"gameId" bson:"gameid"`
 // KillDictionary string     `json:"name" bson:"name"`
 // Passcode       string     `json:"passcode" bson:"passcode"`
 // Status         GameStatus `json:"status" bson:"status"`
@@ -112,7 +113,7 @@ func generatePlayers(gid string, numPlayers int) (players []*Player) {
 			TimeCreated :	time.Now(),
 			GameID		:	gid,
 			Name        :	"I'm player # " + string(i),
-			SlackID     :	"@slackid" + string(i),
+			SlackID     :	slack.SlackID("UID" + string(i)),
 			Email       :	"p" + string(i) + "@email.org",
 			Status		:	Alive,
 			Kills		:	0,

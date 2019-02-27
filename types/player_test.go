@@ -12,7 +12,7 @@ import (
 
 func TestPlayerCreation(t *testing.T) {
 	expectedGameID := "the_jungle"
-	expectedSlackID := "@bigape"
+	expectedSlackID := "Ubigape"
 	expectedName :=  "King Kong"
 	expectedEmail := "kk@jung.le"
 	expectedID := expectedGameID + "+" + expectedSlackID
@@ -26,9 +26,9 @@ func TestPlayerCreation(t *testing.T) {
 }
 
 func TestPlayer_SetTarget(t *testing.T) {
-	actual := NewPlayerFromEvent( events.NewPlayerAddedInline("a_game", "@player", "The Big P", "playuh@game.org") )
+	actual := NewPlayerFromEvent( events.NewPlayerAddedInline("a_game", "Uplayer", "The Big P", "playuh@game.org") )
 	require.NotNil(t, actual)
-	expectedTarget := "@sonofab"
+	expectedTarget := "Usonofab"
 	expectedKillword := "MySharona"
 	actual.SetTarget(expectedTarget, expectedKillword)
 	require.Equal(t, expectedTarget, actual.Target)

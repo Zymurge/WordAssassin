@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	events "wordassassin/types/events"
+	"wordassassin/slack"
 )
 
 // MockGamePool provides a test mock for GamePool dependencies
@@ -65,7 +66,7 @@ func (mgp *MockGamePool) GetGamesList() []*Game {
 }
 
 // StartGame mock
-func (mgp *MockGamePool) StartGame(gameid string, slackid string) (err error) {
+func (mgp *MockGamePool) StartGame(gameid string, slackid slack.SlackID) (err error) {
 	if mgp.StartGameError != "" {
 		return fmt.Errorf(mgp.StartGameError)
 	}

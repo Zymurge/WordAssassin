@@ -8,6 +8,7 @@ import (
 
 	events "wordassassin/types/events"
 	"wordassassin/persistence"
+	"wordassassin/slack"
 )
 
 func TestNewGamePool(t *testing.T) {
@@ -16,7 +17,7 @@ func TestNewGamePool(t *testing.T) {
 		&Game{
 			ID:				"Mock1",
 			TimeCreated:	time.Now(),
-			GameCreator:	"Jim",
+			GameCreator:	slack.SlackID("WJim"),
 			KillDictionary:	"Websters",
 			Status:			Starting,
 			Passcode:		"Gandalf",
@@ -24,7 +25,7 @@ func TestNewGamePool(t *testing.T) {
 		&Game{
 			ID:				"Mock2",
 			TimeCreated:	time.Now(),
-			GameCreator:	"Jimbo",
+			GameCreator:	slack.SlackID("UJimbo"),
 			KillDictionary:	"Websters",
 			Status:			Starting,
 			Passcode:		"Mithrandir",
@@ -36,7 +37,7 @@ func TestNewGamePool(t *testing.T) {
 	require.True(t, ok, "An existing game should say it was fetched")
 	require.NotNil(t, actual, "An existing game should have actually been fetched")
 	require.Equal(t, "Mock2", actual.ID)
-	require.Equal(t, "Jimbo", actual.GameCreator)
+	require.Equal(t, "UJimbo", actual.GameCreator.ToString())
 }
 
 func TestNewGamePoolWithEmptyPreexistingList(t *testing.T) {
@@ -51,19 +52,19 @@ func TestGetGameFunc(t *testing.T) {
 	require.NotNil(t, target)
 	// Note: the test relies on sort orders by creation time for the final validation. Hence, the sleeps
 	// to get past something where it wasn't always guaranteed to run in the add sequence ???
-	addGameToPool(t, target, "g1", "@alpha", "a file", "pass", 1)
+	addGameToPool(t, target, "g1", "Ualpha", "a file", "pass", 1)
 	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "g2", "@beta", "a file again", "pass", 1)
+	addGameToPool(t, target, "g2", "Ubeta", "a file again", "pass", 1)
 	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "g3", "@gamma", "a file III", "pass", 1)
+	addGameToPool(t, target, "g3", "Ugamma", "a file III", "pass", 1)
 	time.Sleep(100 * time.Millisecond)
-	addGameToPool(t, target, "g4", "@a different greek letter", "a file strikes back", "pass", 1)
+	addGameToPool(t, target, "g4", "UaDifferentGreekLetter", "a file strikes back", "pass", 1)
 	t.Run("GetGame: positive", func(t *testing.T) {
 		actual, ok := target.GetGame("g2")
 		require.True(t, ok, "An existing game should say it was fetched")
 		require.NotNil(t, actual, "An existing game should have actually been fetched")
 		require.Equal(t, "g2", actual.ID)
-		require.Equal(t, "@beta", actual.GameCreator)
+		require.Equal(t, "Ubeta", actual.GameCreator.ToString())
 	})
 	t.Run("GetGame: not found", func(t *testing.T) {
 		actual, ok := target.GetGame("say what?")
@@ -81,12 +82,12 @@ func TestGetGameFunc(t *testing.T) {
 func TestAddGame(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	t.Run("Positive", func(t *testing.T) {
-		addGameToPool(t, target, "add1", "@test", "", "youshallnot", 0)
+		addGameToPool(t, target, "add1", "Utest", "", "youshallnot", 0)
 	})
 	t.Run("Duplicate ID", func(t *testing.T) {
 		// add the same event twice to trigger dupe ID
-		addGameToPool(t, target, "add2", "@testDupe", "", "youshallnot", 0)
-		addGameToPool(t, target, "add2", "@testDupe", "", "youshallnot", 0, "duplicate")
+		addGameToPool(t, target, "add2", "UtestDupe", "", "youshallnot", 0)
+		addGameToPool(t, target, "add2", "UtestDupe", "", "youshallnot", 0, "duplicate")
 	})
 	t.Run("Missing ID", func(t *testing.T) {
 		// create new event and break the ID field
@@ -94,7 +95,7 @@ func TestAddGame(t *testing.T) {
 			ID:             "",
 			TimeCreated:    time.Now(),
 			EventType:      "GameCreatedEvent",
-			GameCreator:    "@creator",
+			GameCreator:    "Ucreator",
 			KillDictionary: "dict",
 		})
 		err := target.AddGame(&badEvent)
@@ -108,7 +109,7 @@ func TestAddPlayerToGame(t *testing.T) {
 	mockPP := &MockPlayerPool{}
 	target, _ := getGamePoolWithMockMongo(t, mockPP)
 	require.NotNil(t, target)
-	gm := addGameToPool(t, target, myGameID, "@playervacuum", "a file", "pass", 1)
+	gm := addGameToPool(t, target, myGameID, "Uplayervacuum", "a file", "pass", 1)
 
 	t.Run("Positive", func(t *testing.T) {
 		err := target.AddPlayerToGame(myGameID, events.PlayerAddedEvent{ ID: "yo"})
@@ -139,8 +140,8 @@ func TestAddPlayerToGame(t *testing.T) {
 func TestCanAddPlayer(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	require.NotNil(t, target)
-	addGameToPool(t, target, "good", "@alpha", "a file", "pass", 1)
-	gm := addGameToPool(t, target, "playingGame", "@beta", "a file again", "pass", 8)
+	addGameToPool(t, target, "good", "Ualpha", "a file", "pass", 1)
+	gm := addGameToPool(t, target, "playingGame", "Ubeta", "a file again", "pass", 8)
 	gm.Status = Playing
 
 	t.Run("Positive", func(t *testing.T) {
@@ -163,10 +164,10 @@ func TestCanAddPlayer(t *testing.T) {
 }
 
 func TestReconstitutePool(t *testing.T) {
-	g0 := NewGameFromEvent(events.NewGameCreatedInline("recon1", "@testes", "killme", "Donner"))
-	g1 := NewGameFromEvent(events.NewGameCreatedInline("recon2", "@testes", "killme", "Donner"))
-	g2 := NewGameFromEvent(events.NewGameCreatedInline("recon3", "@testes", "killme", "Donner"))
-	g3 := NewGameFromEvent(events.NewGameCreatedInline("recon4", "@testes", "killme", "Donner"))
+	g0 := NewGameFromEvent(events.NewGameCreatedInline("recon1", "Utestes", "killme", "Donner"))
+	g1 := NewGameFromEvent(events.NewGameCreatedInline("recon2", "Utestes", "killme", "Donner"))
+	g2 := NewGameFromEvent(events.NewGameCreatedInline("recon3", "Utestes", "killme", "Donner"))
+	g3 := NewGameFromEvent(events.NewGameCreatedInline("recon4", "Utestes", "killme", "Donner"))
 	eventsIn := []*Game{ &g0, &g1, &g2, &g3 }
 
 	t.Run("Positive", func(t *testing.T) {
@@ -191,7 +192,8 @@ func TestReconstitutePool(t *testing.T) {
 func TestStartGame(t *testing.T) {
 	// Setup: create a game, some players, a playerpool (mock) and finally the gamepool
 	myGameID := "add1"
-	myCreator := "@daStarter"
+	myCreator, sErr := slack.New("UdaStarter")
+	require.NoError(t, sErr, "Blew up in creating slack id")
 	myGame := &Game{
 		ID:				myGameID,
 		TimeCreated:	time.Now(),
@@ -230,20 +232,18 @@ func TestStartGame(t *testing.T) {
 		require.Contains(t, err.Error(), "GameID: Who, me? doesn't exist", "Tell us why it broke")
 	})
 	t.Run("Wrong game state", func(t *testing.T) {
-		myStartedGame := addGameToPool(t, target, "startedGame", myCreator, "wordz", "MickJ", 6)
+		myStartedGame := addGameToPool(t, target, "startedGame", "UGAMEBREAKER", "wordz", "MickJ", 6)
 		myStartedGame.Status = Playing
-		err := target.StartGame("startedGame", myCreator)
+		err := target.StartGame(myStartedGame.ID, myStartedGame.GameCreator)
 		require.Error(t, err, "Should get an error on starting a game not in the Starting state")
 		require.Contains(t, err.Error(), "GameID: startedGame is not accepting players", "Tell us why it broke")
 	})
 	t.Run("Wrong creator", func(t *testing.T) {
-		addGameToPool(t, target, "lockDown", myCreator, "wordz", "MickJ", 6)
-		err := target.StartGame("lockDown", "@notme")
+		someoneElsesGame := addGameToPool(t, target, "lockDown", "UGAMEBREAKER", "wordz", "MickJ", 6)
+		err := target.StartGame(someoneElsesGame.ID, slack.NewInline("UNOTME"))
 		require.Error(t, err, "Should get an error on starting a game with the wrong creator ID")
 		require.Contains(t, err.Error(), "GameID: lockDown cannot be started by non-creator", "Tell us why it broke")
 	})
-	// game start returns an error
-
 }
 
 //** Helper functions **//
@@ -284,7 +284,7 @@ func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string,
 func makePlayerList(t * testing.T, gameid string, numPlayers int) []*Player {
 	players := make([]*Player, numPlayers)
 	for i := 0; i < numPlayers; i++ {
-		id    := fmt.Sprintf("@name%d", i)
+		id    := fmt.Sprintf("Uname%d", i)
 		name  := fmt.Sprintf("name%d", i)
 		email := fmt.Sprintf("iam%d@mail.org", i)
 		if pl, err := NewPlayer(gameid, id, name, email); err != nil {

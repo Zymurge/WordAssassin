@@ -7,6 +7,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"	
 	
 	events "wordassassin/types/events"
+	"wordassassin/slack"
 )
 
 // GameStatus allows management of game state
@@ -14,16 +15,16 @@ type GameStatus string
 
 // Game - The elements necessary to track a single game of wordassassin.
 type Game struct {
-	ID             string     `json:"id" bson:"_id"`
-	TimeCreated    time.Time  `json:"timeCreated" bson:"timecreated"`
-	GameCreator    string     `json:"gameId" bson:"gameid"`
-	KillDictionary string     `json:"name" bson:"name"`
-	Passcode       string     `json:"passcode" bson:"passcode"`
-	Status         GameStatus `json:"status" bson:"status"`
-	StartTime      time.Time  `json:"starttime"`
-	MinimumPlayers int 		  `json:"minimumplayers"`
-	StartPlayers   int        `json:"startplayers"`
-	RemainPlayers  int        `json:"remainplayers"`
+	ID             string        `json:"id" bson:"_id"`
+	TimeCreated    time.Time     `json:"timeCreated" bson:"timecreated"`
+	GameCreator    slack.SlackID `json:"gameId" bson:"gameid"`
+	KillDictionary string        `json:"name" bson:"name"`
+	Passcode       string        `json:"passcode" bson:"passcode"`
+	Status         GameStatus    `json:"status" bson:"status"`
+	StartTime      time.Time     `json:"starttime"`
+	MinimumPlayers int 		     `json:"minimumplayers"`
+	StartPlayers   int           `json:"startplayers"`
+	RemainPlayers  int           `json:"remainplayers"`
 	// Other possible things:
 	//	TargetList
 	//	NumKills

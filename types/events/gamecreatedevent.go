@@ -22,21 +22,18 @@ type GameCreatedEvent struct {
 // Errors:
 // -- either gameid or creator is blank
 // -- creator is an invalid slack id (per slack validator)
-func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result GameCreatedEvent, err error) {
-	var creatorID slack.SlackID
+func NewGameCreatedEvent(gameid string, creator slack.SlackID, killdict, passcode string) (result GameCreatedEvent, err error) {
 	if gameid == "" {
 		err = fmt.Errorf("The request is missing GameID field")
 	} else if creator == "" {
 		err = fmt.Errorf("The request is missing Creator field")
-	} else if creatorID, err = slack.New(creator); err != nil {
-		err = fmt.Errorf("Creator is not a valid Slack ID: %v", err)
 	}
 
 	result = GameCreatedEvent{
 		ID:             gameid,
 		TimeCreated:    time.Now(),
 		EventType:      "GameCreatedEvent",
-		GameCreator:    creatorID,
+		GameCreator:    creator,
 		KillDictionary: killdict,
 		Passcode:       passcode,
 	}
@@ -44,9 +41,10 @@ func NewGameCreatedEvent(gameid, creator, killdict, passcode string) (result Gam
 	return
 }
 
-// NewGameCreatedInline returns an instance of the event with no error value. Panics on error instead.
+// NewGameCreatedInline is a test util that creates an instance of of a game event. 
+// It provides a single receiver form. If any params fails validation, the func panics.
 func NewGameCreatedInline(gameid, creator, killdict, passcode string) GameCreatedEvent {
-	if result, err := NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
+	if result, err := NewGameCreatedEvent(gameid, slack.NewInline(creator), killdict, passcode); err != nil {
 		panic(err)
 	} else {
 		return result

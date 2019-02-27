@@ -4,6 +4,7 @@ import (
 	"time"
 
 	events "wordassassin/types/events"
+	"wordassassin/slack"
 )
 
 // PlayerStatus allows management of player state
@@ -11,16 +12,16 @@ type PlayerStatus int
 
 // Player - It's what it sounds like.
 type Player struct {
-	ID          string	 	`json:"id" bson:"_id"`
-	TimeCreated time.Time	`json:"timeCreated" bson:"timecreated"`
-	GameID		string	  	`json:"gameId" bson:"gameid"`
-	Name        string		`json:"name" bson:"name"`
-	SlackID     string		`json:"slackId" bson:"slackid"`
-	Email       string		`json:"email" bson:"email"`
-	Status		PlayerStatus `json:"status" bson:"status"`
-	Kills		int			`json:"kills" bson:"kills"`
-	Target		string		`json:"target" bson:"target"`
-	KillWord	string		`json:"killword" bson:"killword"`
+	ID          string	 	  `json:"id" bson:"_id"`
+	TimeCreated time.Time	  `json:"timeCreated" bson:"timecreated"`
+	GameID		string	  	  `json:"gameId" bson:"gameid"`
+	Name        string		  `json:"name" bson:"name"`
+	SlackID     slack.SlackID `json:"slackId" bson:"slackid"`
+	Email       string		  `json:"email" bson:"email"`
+	Status		PlayerStatus  `json:"status" bson:"status"`
+	Kills		int			  `json:"kills" bson:"kills"`
+	Target		string		  `json:"target" bson:"target"`
+	KillWord	string		  `json:"killword" bson:"killword"`
 }
 	
 // Constants for PlayerStatus

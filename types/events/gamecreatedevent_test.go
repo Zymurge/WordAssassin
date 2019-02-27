@@ -30,7 +30,7 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 	tests := []struct {
 		testname string
 		ID string
-		GameCreator string
+		GameCreator slack.SlackID
 		KillDictionary string
 		Passcode string
 		wantErr bool
@@ -38,28 +38,18 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 	}{
 		{
 			"Positive_all",
-			"The Game", "UQUEEN", "lyrics", "dragonattack",
+			"The Game", slack.NewInline("UQUEEN"), "lyrics", "dragonattack",
 			false, "", 
 		},
 		{
 			"Positive_blank_optionals",
-			"The Game", "UQUEEN", "lyrics", "",
+			"The Game", slack.NewInline("UQUEEN"), "lyrics", "",
 			false, "", 
 		},
 		{
 			"No gameid",
-			"", "UQUEEN", "lyrics", "dragonattack",
+			"", slack.NewInline("UQUEEN"), "lyrics", "dragonattack",
 			true, "",
-		},
-		{
-			"No creator",
-			"Not Quite The Game", "", "lyrics", "dragonattack",
-			true, "",
-		},
-		{
-			"Invalid GameCreator",
-			"some game", "@QUEEN", "theworld", "theworld",
-			true, "Slack ID",
 		},
 	}
 	for _, tt := range tests {
