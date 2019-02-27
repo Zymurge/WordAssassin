@@ -80,6 +80,18 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 	return nil
 }
 
+// OnGameStarted handles activiting a game from the starting stage into playing.
+// Only the original game creator is allowed to start a given gameid.
+// Errors:
+// -- gameid or slackid empty
+// -- gameid not exists and in 'starting' state
+// -- slackid does not match the creating slackid
+func (h *Handler) OnGameStarted(gameid string, slackid string) (err error) {
+	// First, make sure there's already a game and it's not started yet
+	err = h.gPool.StartGame(gameid, slackid)
+	return
+}
+
 // OnPlayerAdded handles coordination when a player is added to the game:
 // -- A unique player ID is created from the combo of gameid and slackid
 // -- An event is created and persisted to mongo
@@ -111,18 +123,6 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	}
 
 	return h.gPool.AddPlayerToGame(gameid, ev)
-}
-
-// OnGameStarted handles activiting a game from the starting stage into playing.
-// Only the original game creator is allowed to start a given gameid.
-// Errors:
-// -- gameid or slackid empty
-// -- gameid not exists and in 'starting' state
-// -- slackid does not match the creating slackid
-func (h *Handler) OnGameStarted(gameid string, slackid string) (err error) {
-	// First, make sure there's already a game and it's not started yet
-	err = h.gPool.StartGame(gameid, slackid)
-	return
 }
 
 // GetGameStatus produces a game status report for the specified gameid

@@ -8,6 +8,7 @@ import (
 type MockPlayerPool struct {
 	playersToReturn []*Player
 	AddPlayerError  string
+	GetPlayerError  string
 }
 
 // AddPlayer mock
@@ -26,8 +27,8 @@ func (mpp MockPlayerPool) GetPlayerByID(searchid string) (*Player, error) {
 
 // GetAllPlayersInGame mock
 func (mpp MockPlayerPool) GetAllPlayersInGame(gameid string) ([]*Player, error) {
-	if mpp.playersToReturn == nil {
-		return nil, fmt.Errorf("Mocked error")
+	if mpp.GetPlayerError != "" {
+		return nil, fmt.Errorf(mpp.GetPlayerError)
 	}
 	return mpp.playersToReturn, nil
 }

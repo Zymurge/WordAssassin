@@ -339,54 +339,6 @@ func TestHandler_OnGameStarted(t *testing.T) {
 				startGameErr: "mock GamePool error message",
 			},
 		},
-		// TODO: move the following test cases to GamePool.StartGame()
-/*		
-		testArgs {
-			name: "empty creator argument",
-			wantErr: true,
-			errText: "requires a non-empty game ID and slack ID", 
-			gArgs: gameArgs {
-				gameid: "game_filler",
-				creator: "@someone",
-				numPlayers: 7,
-			},
-			cArgs: commandArgs {
-				gameid: "game_filler",
-				creator: "",
-			},
-		},
-		testArgs {
-			name: "wrong creator",
-			wantErr: true,
-			errText: "creator", 
-			gArgs: gameArgs{
-				gameid: "hack_me",
-				creator: "@da_man",
-				status: types.Playing,
-				numPlayers: 7,
-			},
-			cArgs: commandArgs {
-				gameid: "hack_me",
-				creator: "@a_hacker",
-			},
-		},
-		testArgs {
-			name: "mongo fail",
-			wantErr: true,
-			errText: "connect",
-			gArgs: gameArgs {
-				gameid: "mongo bad",
-				creator: "@someone",
-			},
-			cArgs: commandArgs {
-				gameid: "mongo bad",
-				creator: "@someone",
-			},
-			mongoCtrl: mongoControls {
-				connectMode: "no connect",
-			},
-		},
-	*/
 	}
 
 	for _, tt := range tests {

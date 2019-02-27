@@ -205,7 +205,7 @@ func TestStartGame(t *testing.T) {
 		StartPlayers:	6,
 	}
 	players := makePlayerList(t, myGameID, 6)
-	mockPP := MockPlayerPool{ playersToReturn: players }
+	mockPP := &MockPlayerPool{ playersToReturn: players }
 	target, _ := getGamePoolWithMockMongo(t, mockPP, myGame)
 
 	t.Run("Positive", func(t *testing.T) {
@@ -215,6 +215,8 @@ func TestStartGame(t *testing.T) {
 		err := target.StartGame(myGameID, myCreator)
 		require.NoError(t, err)
 		require.Equal(t, Playing, targetGame.Status, "Once started, the game should have the correct status")
+		// return status to reuse
+		targetGame.Status = Starting
 	})
 	t.Run("Blank slackid", func(t *testing.T) {
 		err := target.StartGame("", myCreator)
@@ -244,9 +246,34 @@ func TestStartGame(t *testing.T) {
 		require.Error(t, err, "Should get an error on starting a game with the wrong creator ID")
 		require.Contains(t, err.Error(), "GameID: lockDown cannot be started by non-creator", "Tell us why it broke")
 	})
+	t.Run("PlayerPool issue", func(t *testing.T){
+		mockPP.GetPlayerError = "mock error: bad bad stuff happened"
+		err := target.StartGame(myGameID, myCreator)
+		require.Error(t, err, "Should get an error when PlayerPool gets the player list")
+		require.Contains(t, err.Error(), "PlayerPool: ", "Tell us where it broke")
+		require.Contains(t, err.Error(), mockPP.GetPlayerError, "Tell us what broke")
+		// restore mock
+		mockPP.GetPlayerError = ""
+	})
+
 }
 
 //** Helper functions **//
+
+// addGameToPool creates and adds a game to the GamePool. If an error is expected, it validates that it contains
+// the optional passed in string. Otherwise, validates no error
+func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string, numPlayers int, expectError ...string) *Game {
+	g1 := NewGameFromEvent(events.NewGameCreatedInline(id, creator, dict, pass))
+	g1.StartPlayers = numPlayers
+	err := pool.AddGame(&g1)
+	if len(expectError) > 0 {
+		require.Error(t, err, "Wanted to see error adding to the test pool")
+		require.Contains(t, err.Error(), expectError[0], "Wanted to see error adding to the test pool")
+	} else {
+		require.NoErrorf(t, err, "Didn't want to see error adding to the test pool: %v", err)
+	}
+	return &g1
+}
 
 // getGamePoolWithMockMongo creates a GamePool with a preset mock mongo set for all positive mock behaviors
 // uses either the passed in PlayerPoolAbstraction, or if nil, creates a default instance of PlayerPool
@@ -264,21 +291,6 @@ func getGamePoolWithMockMongo(t *testing.T, pp PlayerPoolAbstraction, existingGa
 	mm.FetchResults = existingGames
 	target = NewGamePool(mm, pp)
 	return target, nil
-}
-
-// addGameToPool creates and adds a game to the GamePool. If an error is expected, it validates that it contains
-// the optional passed in string. Otherwise, validates no error
-func addGameToPool(t *testing.T, pool *GamePool, id, creator, dict, pass string, numPlayers int, expectError ...string) *Game {
-	g1 := NewGameFromEvent(events.NewGameCreatedInline(id, creator, dict, pass))
-	g1.StartPlayers = numPlayers
-	err := pool.AddGame(&g1)
-	if len(expectError) > 0 {
-		require.Error(t, err, "Wanted to see error adding to the test pool")
-		require.Contains(t, err.Error(), expectError[0], "Wanted to see error adding to the test pool")
-	} else {
-		require.NoErrorf(t, err, "Didn't want to see error adding to the test pool: %v", err)
-	}
-	return &g1
 }
 
 func makePlayerList(t * testing.T, gameid string, numPlayers int) []*Player {

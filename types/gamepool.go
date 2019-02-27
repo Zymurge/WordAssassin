@@ -108,7 +108,6 @@ func (pool *GamePool) CanAddPlayers(gameid string) (accepting bool, err error) {
 	return
 }
 
-
 // GetGame gets the game specified by the requested ID.
 // Returns:
 // -- the game object for that ID
@@ -163,12 +162,11 @@ func (pool *GamePool) StartGame(gameid string, creator slack.SlackID) error {
 	if game.GameCreator != creator {
 		return fmt.Errorf("GameID: %s cannot be started by non-creator. %s tried though", gameid, creator)
 	}
-	//var players []*Player
-	if players, err := pool.players.GetAllPlayersInGame(game.GetID()); err != nil {
-		panic("Error on GetAllPlayersInGame")
-	} else {
-		return game.Start(players)
+	players, err := pool.players.GetAllPlayersInGame(game.GetID())
+	if err != nil {
+		return fmt.Errorf("GameID: %s Start failure. PlayerPool: %v", gameid, err)
 	}
+	return game.Start(players)
 }
 
 func (pool *GamePool) addGameToMap(game *Game) error {
