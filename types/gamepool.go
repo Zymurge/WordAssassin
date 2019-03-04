@@ -17,7 +17,7 @@ type GamePoolAbstraction interface {
 	CanAddPlayers(gameid string) (bool, error)
 	GetGame(id string) (*Game, bool)
 	GetGamesList() []*Game
-	StartGame(gameid string, slackid string) error 
+	StartGame(gameid string, slackid slack.SlackID) error 
 }
 
 const (

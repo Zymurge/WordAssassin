@@ -9,7 +9,10 @@ import (
 	persistence "wordassassin/persistence"
 	types "wordassassin/types"
 	events "wordassassin/types/events"
+	slack "wordassassin/slack"
 )
+
+// TODO: standardize all err messages to prefix with handler func
 
 // Handler contains the context necessary to process events and put everything where it belongs. Needs to be aware
 // of persistence, the game pool, the player pool, etc
@@ -43,24 +46,26 @@ func NewHandler(gp types.GamePoolAbstraction, m persistence.MongoAbstraction, l 
 // OnGameCreated handles coordination when a game is created for this server.
 // A unique game ID is created here.
 // Errors:
-// -- creator or killdict is empty
+// -- validation errors on all params
+// -- duplicate game created (GameID already exists)
+// -- mongo issue
 func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err error) {
-	if gameid   == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank gameid") }
-	if creator  == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank creator") }
-	if killdict == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank killdict") }
-	if passcode == "" { return fmt.Errorf("OnGameCreated: cannot create game with blank passcode") }
-
+	creatorID, err := slack.New(creator)
+	if err != nil {
+		return fmt.Errorf("OnGameCreated: %v", err)
+	}
 	// Create and persist the event to request a new game
 	var ev events.GameCreatedEvent
-	if ev, err = events.NewGameCreatedEvent(gameid, creator, killdict, passcode); err != nil {
+	if ev, err = events.NewGameCreatedEvent(gameid, creatorID, killdict, passcode); err != nil {
+		err = fmt.Errorf("OnGameCreated: %v", err)
 		return
 	}
 	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle errors with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
-			err = fmt.Errorf("Game %s already created", gameid)
+			err = fmt.Errorf("OnGameCreated: Game %s already created", gameid)
 		} else {
-			err = fmt.Errorf("Mongodb issue on GameCreated event write: %s", mongoerr.Error())
+			err = fmt.Errorf("OnGameCreated: Mongodb issue on GameCreated event write: %v", mongoerr)
 		}
 		return
 	}
@@ -70,10 +75,10 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 	if gperr := h.gPool.AddGame(&game); gperr != nil {
 		// Should catch all dups at the event level
 		if strings.Contains(gperr.Error(), "duplicate") {
-			err = fmt.Errorf("Something bad happened. GamePool out of sync with mongo events")
+			err = fmt.Errorf("OnGameCreated: Something bad happened. GamePool out of sync with mongo events")
 			return
 		}
-		err = fmt.Errorf("Issue on GameCreated add to GamePool: %s", gperr.Error())
+		err = fmt.Errorf("OnGameCreated: Issue on GameCreated add to GamePool: %v", gperr)
 		return
 	}
 
@@ -83,12 +88,17 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 // OnGameStarted handles activiting a game from the starting stage into playing.
 // Only the original game creator is allowed to start a given gameid.
 // Errors:
-// -- gameid or slackid empty
+// -- gameid empty
+// -- valid slackid
 // -- gameid not exists and in 'starting' state
 // -- slackid does not match the creating slackid
-func (h *Handler) OnGameStarted(gameid string, slackid string) (err error) {
+func (h *Handler) OnGameStarted(gameid string, creator string) (err error) {
 	// First, make sure there's already a game and it's not started yet
-	err = h.gPool.StartGame(gameid, slackid)
+	creatorID, err := slack.New(creator)
+	if err != nil {
+		return fmt.Errorf("OnGameStarted: %v", err)
+	}
+	err = h.gPool.StartGame(gameid, creatorID)
 	return
 }
 

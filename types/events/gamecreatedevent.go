@@ -20,13 +20,17 @@ type GameCreatedEvent struct {
 
 // NewGameCreatedEvent returns an instance of the event
 // Errors:
-// -- either gameid or creator is blank
+// -- either any of the arguments are blank
 // -- creator is an invalid slack id (per slack validator)
 func NewGameCreatedEvent(gameid string, creator slack.SlackID, killdict, passcode string) (result GameCreatedEvent, err error) {
 	if gameid == "" {
 		err = fmt.Errorf("The request is missing GameID field")
 	} else if creator == "" {
 		err = fmt.Errorf("The request is missing Creator field")
+	} else if killdict == "" {
+		err = fmt.Errorf("The request is missing Killdict field")
+	} else if passcode == "" {
+		err = fmt.Errorf("The request is missing Passcode field")
 	}
 
 	result = GameCreatedEvent{

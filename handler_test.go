@@ -9,6 +9,7 @@ import (
 	
 	"wordassassin/types"
 	"wordassassin/types/events"
+	"wordassassin/slack"
 	dao "wordassassin/persistence"
 )
 
@@ -103,7 +104,7 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 			wantErr: false,
 			pArgs: playerArgs {
 				gameid: "game1", 
-				slackid: "@fred",
+				slackid: "UFRED",
 				name: "fred",
 				email: "fred@bedrock.org",
 			},
@@ -115,9 +116,10 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				returnVal: nil,
 			},
 		},
+		// TODO: test for bad slack id
 	}
 	// Add player(s) for tests that require pre-existing players
-	preexist, err := events.NewPlayerAddedEvent("targetGame", "@firstdupe", "George", "me@you.net")
+	preexist, err := events.NewPlayerAddedEvent("targetGame", "UFIRSTDUPE", "George", "me@you.net")
 	require.NoError(t, err, "Failure to create preexisting player in setup")
 	testHandler.gPool.AddPlayerToGame("targetGame", preexist)
 
@@ -149,28 +151,28 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			wantErr: false,
 			gArgs: gameArgs {
 				gameid: "game1",
-				creator: "@fred",
+				creator: "UFRED",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
 			cArgs: commandArgs {
 				gameid: "game1",
-				creator: "@fred",
+				creator: "UFRED",
 			},
 		},
 		testArgs { name: "empty gameID argument",
 			wantErr: true,
-			errText: "with blank gameid",
+			errText: "OnGameCreated: The request is missing GameID",
 			gArgs: gameArgs {
 				gameid: "",
-				creator: "@notblank",
+				creator: "UNOTBLANK",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
 		},
 		testArgs { name: "empty creator argument",
 			wantErr: true,
-			errText: "with blank creator",
+			errText: "OnGameCreated: A valid Slack ID",
 			gArgs: gameArgs {
 				gameid: "notblank",
 				creator: "",
@@ -180,30 +182,30 @@ func TestHandler_OnGameCreated(t *testing.T) {
 		},
 		testArgs { name: "empty killdict argument",
 			wantErr: true,
-			errText: "with blank killdict",
+			errText: "OnGameCreated: The request is missing Killdict",
 			gArgs: gameArgs {
 				gameid: "notblank",
-				creator: "@notblank",
+				creator: "UNOTBLANK",
 				killdict: "",
 				passcode: "notBlank",
 			},
 		},
 		testArgs { name: "empty passcode argument",
 			wantErr: true,
-			errText: "with blank passcode",
+			errText: "OnGameCreated: The request is missing Passcode",
 			gArgs: gameArgs {
 				gameid: "notblank",
-				creator: "@notblank",
+				creator: "UNOTBLANK",
 				killdict: "notBlank",
 				passcode: "",
 			},
 		},
 		testArgs { name: "force NewGameCreatedEvent error",
 			wantErr: true,
-			errText: "must start with '@'",
+			errText: "valid Slack ID",
 			gArgs: gameArgs {
 				gameid: "notblank",
-				creator: "invalid: missing @",
+				creator: "invalid format",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
@@ -213,7 +215,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			errText: "dupe_game already created",
 			gArgs: gameArgs {
 				gameid: "dupe_game",
-				creator: "@testmaster",
+				creator: "UTESTMASTER",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
@@ -228,7 +230,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			errText: "GamePool out of sync",
 			gArgs: gameArgs {
 				gameid: "dupe_game",
-				creator: "@testmaster",
+				creator: "UTESTMASTER",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
@@ -246,7 +248,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			errText: "connect",
 			gArgs: gameArgs {
 				gameid: "fail",
-				creator: "@Ifailoften",
+				creator: "UWILLFAIL",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
@@ -261,7 +263,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			errText: "Issue on GameCreated add to GamePool: mock error",
 			gArgs: gameArgs {
 				gameid: "Bob",
-				creator: "@Blahblah",
+				creator: "UWILLFAIL",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
@@ -280,7 +282,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 	gPool.AddGame( &types.Game{
 			ID:             "dupe_game",
 			//TimeCreated:    time.Now(),
-			GameCreator:    "@testmaster",
+			GameCreator:    "UTESTMASTER",
 			KillDictionary: "websters",
 			Status:         types.Starting,
 		} )
@@ -312,12 +314,12 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			wantErr: false,
 			gArgs: gameArgs {
 				gameid: "game1",
-				creator: "@fred",
+				creator: "UFRED",
 				numPlayers: 7,
 			},
 			cArgs: commandArgs {
 				gameid: "game1",
-				creator: "@fred",
+				creator: "UFRED",
 			},
 		},
 		testArgs {
@@ -326,11 +328,11 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			errText: "mock GamePool error message", 
 			gArgs: gameArgs {
 				gameid: "error me",
-				creator: "@someone",
+				creator: "USOMEONE",
 			},
 			cArgs: commandArgs {
 				gameid: "error me",
-				creator: "@someone",
+				creator: "USOMEONE",
 			},
 			mongoCtrl: mongoControls {
 				connectMode: "no connect",
@@ -363,9 +365,8 @@ func TestHandler_OnGameStarted(t *testing.T) {
 
 func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo *dao.MockMongoSession, mockGPool *types.MockGamePool, logBuf *bytes.Buffer) {
 	mockMongo = dao.NewMockMongoSession()
-	testPPool := types.PlayerPool{}
 	mockGames := []*types.Game {
-		&types.Game{ ID: "mockity", GameCreator: "God" },
+		&types.Game{ ID: "mockity", GameCreator: "UGOD" },
 	}
 	mockGPool = &types.MockGamePool{
 		GamesToReturn: mockGames,
@@ -373,10 +374,9 @@ func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo
 	logBuf = &bytes.Buffer{}
 	logLabel := "handler_test: "
 	blog := log.New(logBuf, logLabel, 0)
-	testHandler = NewHandler(mockGPool, &testPPool, mockMongo, blog)
+	testHandler = NewHandler(mockGPool, mockMongo, blog)
 	require.NotNil(t, testHandler, "Make sure creation worked")
 	require.NotNil(t, testHandler.gPool, "Make sure we have a valid GamePool")
-	require.NotNil(t, testHandler.pPool, "Make sure we have a valid PlayerPool")
 	return
 }
 
@@ -392,7 +392,7 @@ func newGameFromArgs(args gameArgs) types.Game {
 	if args.passcode == "" { args.passcode = "melod" }
 	if args.numPlayers == 0 { args.numPlayers = 7 }
 	
-	gce, _ := events.NewGameCreatedEvent(args.gameid, args.creator, args.killdict, args.passcode)
+	gce, _ := events.NewGameCreatedEvent(args.gameid, slack.NewInline(args.creator), args.killdict, args.passcode)
 	myGame := types.NewGameFromEvent(gce)
 	// TODO: validate that forcing the count is sufficient for tests or if mock playerpool is needed
 	myGame.StartPlayers = args.numPlayers

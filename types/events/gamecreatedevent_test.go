@@ -42,14 +42,24 @@ func TestNewGameCreatedEventMultiple(t *testing.T) {
 			false, "", 
 		},
 		{
-			"Positive_blank_optionals",
-			"The Game", slack.NewInline("UQUEEN"), "lyrics", "",
-			false, "", 
-		},
-		{
 			"No gameid",
 			"", slack.NewInline("UQUEEN"), "lyrics", "dragonattack",
-			true, "",
+			true, "missing GameID field",
+		},
+		{
+			"No creator",
+			"Any Game", slack.SlackID(""), "lyrics", "dragonattack",
+			true, "missing Creator field",
+		},
+		{
+			"No killdict",
+			"Any Game", slack.NewInline("UQUEEN"), "", "dragonattack",
+			true, "missing Killdict field",
+		},
+		{
+			"No passcode",
+			"Any Game", slack.NewInline("UQUEEN"), "lyrics", "",
+			true, "missing Passcode field",
 		},
 	}
 	for _, tt := range tests {
