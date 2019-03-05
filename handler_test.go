@@ -94,7 +94,7 @@ func TestHandlerCtorNilPointers(t *testing.T) {
 	require.PanicsWithValue(t, "GamePool argument is nil", func(){ NewHandler(nil, mongo, blog) })
 	require.PanicsWithValue(t, "MongoSession argument is nil", func(){ NewHandler(testGPool, nil, blog) })
 	require.PanicsWithValue(t, "Logger argument is nil", func(){ NewHandler(testGPool, mongo, nil) })
-	}
+}
 
 func TestHandler_OnPlayerAdded(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
@@ -108,15 +108,62 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				name: "fred",
 				email: "fred@bedrock.org",
 			},
+			// gPoolCtrl: gPoolControls {
+			// },
+			// mongoCtrl: mongoControls {
+			// 	connectMode: "positive",
+			// 	writeMode: "positive",
+			// 	returnVal: nil,
+			// },
+		},
+		testArgs { name: "invalid game ID",
+			wantErr: true,
+			errText: "OnPlayerAdded: The request is missing GameID",
+			pArgs: playerArgs {
+				gameid: "", 
+				slackid: "UCREATEDME",
+				name: "fred",
+				email: "fred@bedrock.org",
+			},
+		},
+		testArgs { name: "invalid slack ID",
+			wantErr: true,
+			errText: "OnPlayerAdded: Player does not have a valid Slack ID",
+			pArgs: playerArgs {
+				gameid: "game1", 
+				slackid: "notValid",
+				name: "fred",
+				email: "fred@bedrock.org",
+			},
+		},
+		testArgs { name: "invalid game state",
+			wantErr: true,
+			errText: "OnPlayerAdded: game startedgame: (mock) message about state",
+			pArgs: playerArgs {
+				gameid: "startedgame", 
+				slackid: "UCREATEDME",
+				name: "fred",
+				email: "fred@bedrock.org",
+			},
 			gPoolCtrl: gPoolControls {
+				canAddErr: "(mock) message about state"	,			
+			},
+		},
+		testArgs { name: "duplicate players",
+			wantErr: true,
+			errText: "OnPlayerAdded: Player UALREADYEXIST already added to game Dupity",
+			pArgs: playerArgs {
+				gameid: "Dupity", 
+				slackid: "UALREADYEXIST",
+				name: "fred",
+				email: "fred@bedrock.org",
 			},
 			mongoCtrl: mongoControls {
 				connectMode: "positive",
-				writeMode: "positive",
+				writeMode: "duplicate",
 				returnVal: nil,
 			},
 		},
-		// TODO: test for bad slack id
 	}
 	// Add player(s) for tests that require pre-existing players
 	preexist, err := events.NewPlayerAddedEvent("targetGame", "UFIRSTDUPE", "George", "me@you.net")

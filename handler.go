@@ -107,27 +107,29 @@ func (h *Handler) OnGameStarted(gameid string, creator string) (err error) {
 // -- An event is created and persisted to mongo
 // -- The new player is added to the player pool
 // Errors:
-// -- gameid or slackid empty
-// -- gameid not exists and in 'starting' state
+// -- gameid does not exists 
+// -- gameid not in 'starting' state
+// -- slackid empty
 // -- duplicate player added
 func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email string) (err error) {
 	// First, make sure there's already a game and it's accepting players
 	if accepting, acceptErr := h.gPool.CanAddPlayers(gameid); !accepting {
-		err = acceptErr
+		err = fmt.Errorf("OnPlayerAdded: game %s: %v", gameid, acceptErr)
 		return
 	}
 
 	// Create and persist an event, unless it's a dupe. Rely on PlayerAddEvent ctor to validate inputs
 	var ev events.PlayerAddedEvent
 	if ev, err = events.NewPlayerAddedEvent(gameid, slackid, name, email); err != nil {
+		err = fmt.Errorf("OnPlayerAdded: %v", err)
 		return
 	}
 	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle a dup write with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
-			err = fmt.Errorf("Player %s already added to game %s", slackid, gameid)
+			err = fmt.Errorf("OnPlayerAdded: Player %s already added to game %s", slackid, gameid)
 		} else {
-			err = fmt.Errorf("Mongodb issue on AddPlayer event write: %s", mongoerr.Error())
+			err = fmt.Errorf("OnPlayerAdded: Mongodb write issue: %v", mongoerr)
 		}
 		return
 	}
