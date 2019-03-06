@@ -30,6 +30,7 @@ type gPoolControls struct {
 	gamesList		[]*types.Game
 	returnVal		interface{}  // nil
 	addGameErr 		string       // default: ""
+	addPlayerErr 	string       // default: ""
 	canAddErr		string		 // default: ""
 	startGameErr	string       // default: ""
 }
@@ -108,13 +109,6 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				name: "fred",
 				email: "fred@bedrock.org",
 			},
-			// gPoolCtrl: gPoolControls {
-			// },
-			// mongoCtrl: mongoControls {
-			// 	connectMode: "positive",
-			// 	writeMode: "positive",
-			// 	returnVal: nil,
-			// },
 		},
 		testArgs { name: "invalid game ID",
 			wantErr: true,
@@ -162,6 +156,34 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				connectMode: "positive",
 				writeMode: "duplicate",
 				returnVal: nil,
+			},
+		},
+		testArgs { name: "mongo issue",
+			wantErr: true,
+			errText: "OnPlayerAdded: Mongodb write issue: Mock error on write",
+			pArgs: playerArgs {
+				gameid: "Dupity", 
+				slackid: "UALREADYEXIST",
+				name: "fred",
+				email: "fred@bedrock.org",
+			},
+			mongoCtrl: mongoControls {
+				connectMode: "positive",
+				writeMode: "fail",
+				returnVal: nil,
+			},
+		},
+		testArgs { name: "gamepool issue",
+			wantErr: true,
+			errText: "OnPlayerAdded: (mock) gamepool puke",
+			pArgs: playerArgs {
+				gameid: "Dupity", 
+				slackid: "UALREADYEXIST",
+				name: "fred",
+				email: "fred@bedrock.org",
+			},
+			gPoolCtrl: gPoolControls {
+				addPlayerErr: "(mock) gamepool puke",			
 			},
 		},
 	}
@@ -449,6 +471,7 @@ func newGameFromArgs(args gameArgs) types.Game {
 
 func setGPoolControlsFromArgs(gpool *types.MockGamePool, args gPoolControls) {
 	gpool.AddGameError = args.addGameErr
+	gpool.AddPlayerError = args.addPlayerErr
 	gpool.CanAddError = args.canAddErr
 	gpool.StartGameError = args.startGameErr
 	gpool.GamesToReturn = args.gamesList

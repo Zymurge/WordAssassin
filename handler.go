@@ -111,6 +111,8 @@ func (h *Handler) OnGameStarted(gameid string, creator string) (err error) {
 // -- gameid not in 'starting' state
 // -- slackid empty
 // -- duplicate player added
+// -- mongo issue
+// -- gamepool issue
 func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email string) (err error) {
 	// First, make sure there's already a game and it's accepting players
 	if accepting, acceptErr := h.gPool.CanAddPlayers(gameid); !accepting {
@@ -124,6 +126,7 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		err = fmt.Errorf("OnPlayerAdded: %v", err)
 		return
 	}
+
 	if mongoerr := h.mongo.WriteCollection("events", &ev); mongoerr != nil {
 		// Want to handle a dup write with more graceful wording for downstream consumers
 		if strings.Contains(mongoerr.Error(), "duplicate") {
@@ -134,7 +137,10 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 		return
 	}
 
-	return h.gPool.AddPlayerToGame(gameid, ev)
+	if gpErr := h.gPool.AddPlayerToGame(gameid, ev); gpErr != nil {
+		err = fmt.Errorf("OnPlayerAdded: %v", gpErr)
+	}
+	return
 }
 
 // GetGameStatus produces a game status report for the specified gameid
