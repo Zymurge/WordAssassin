@@ -90,7 +90,8 @@ func (h Handler) OnGameCreated(gameid, creator, killdict, passcode string) (err 
 // Errors:
 // -- gameid empty
 // -- valid slackid
-// -- gameid not exists and in 'starting' state
+// -- gameid does not exists 
+// -- gameid not in 'starting' state
 // -- slackid does not match the creating slackid
 func (h *Handler) OnGameStarted(gameid string, creator string) (err error) {
 	// First, make sure there's already a game and it's not started yet
@@ -99,6 +100,9 @@ func (h *Handler) OnGameStarted(gameid string, creator string) (err error) {
 		return fmt.Errorf("OnGameStarted: %v", err)
 	}
 	err = h.gPool.StartGame(gameid, creatorID)
+	if err != nil {
+		return fmt.Errorf("OnGameStarted: %v", err)
+	}
 	return
 }
 
@@ -143,7 +147,8 @@ func (h Handler) OnPlayerAdded(gameid string, slackid string, name string, email
 	return
 }
 
-// GetGameStatus produces a game status report for the specified gameid
+// GetGameStatus produces a game status report for the specified 
+// Provides an existence check in lieu of error messages
 func (h *Handler) GetGameStatus(gameid string) (result string, exists bool) {
 	var game *types.Game
 	if game, exists = h.gPool.GetGame(gameid); !exists {

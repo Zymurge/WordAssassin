@@ -82,12 +82,12 @@ func TestGetGameFunc(t *testing.T) {
 func TestAddGame(t *testing.T) {
 	target, _ := getGamePoolWithMockMongo(t, nil)
 	t.Run("Positive", func(t *testing.T) {
-		addGameToPool(t, target, "add1", "Utest", "", "youshallnot", 0)
+		addGameToPool(t, target, "add1", "Utest", "dict", "youshallnot", 0)
 	})
 	t.Run("Duplicate ID", func(t *testing.T) {
 		// add the same event twice to trigger dupe ID
-		addGameToPool(t, target, "add2", "UtestDupe", "", "youshallnot", 0)
-		addGameToPool(t, target, "add2", "UtestDupe", "", "youshallnot", 0, "duplicate")
+		addGameToPool(t, target, "add2", "UtestDupe", "dict", "youshallnot", 0)
+		addGameToPool(t, target, "add2", "UtestDupe", "dict", "youshallnot", 0, "duplicate")
 	})
 	t.Run("Missing ID", func(t *testing.T) {
 		// create new event and break the ID field

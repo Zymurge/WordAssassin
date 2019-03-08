@@ -32,6 +32,7 @@ type gPoolControls struct {
 	addGameErr 		string       // default: ""
 	addPlayerErr 	string       // default: ""
 	canAddErr		string		 // default: ""
+	getGameErr	    string       // default: ""
 	startGameErr	string       // default: ""
 }
 
@@ -378,8 +379,7 @@ func TestHandler_OnGameStarted(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
 	tests := []testArgs {
-		testArgs {
-			name: "positive",
+		testArgs { name: "positive",
 			wantErr: false,
 			gArgs: gameArgs {
 				gameid: "game1",
@@ -391,8 +391,37 @@ func TestHandler_OnGameStarted(t *testing.T) {
 				creator: "UFRED",
 			},
 		},
-		testArgs {
-			name: "GamePool returns an error",
+		testArgs { name: "bad Slack ID",
+			wantErr: true,
+			errText: "OnGameStarted: A valid Slack ID",
+			gArgs: gameArgs {
+				gameid: "game1",
+				creator: "UNOMATTER",
+				numPlayers: 7,
+			},
+			cArgs: commandArgs {
+				gameid: "game1",
+				creator: "I_no_valido",
+			},
+		},
+		testArgs { name: "missing game ID",
+			wantErr: true,
+			errText: "OnGameStarted: (mock) not a valid Game ID",
+			gArgs: gameArgs {
+				gameid: "game1",
+				creator: "UNOMATTER",
+				numPlayers: 7,
+			},
+			cArgs: commandArgs {
+				gameid: "",
+				creator: "UCREATE",
+			},
+			gPoolCtrl: gPoolControls {
+				startGameErr: "(mock) not a valid Game ID",
+			},
+
+		},
+		testArgs { name: "GamePool returns an error",
 			wantErr: true,
 			errText: "mock GamePool error message", 
 			gArgs: gameArgs {
@@ -403,9 +432,6 @@ func TestHandler_OnGameStarted(t *testing.T) {
 				gameid: "error me",
 				creator: "USOMEONE",
 			},
-			mongoCtrl: mongoControls {
-				connectMode: "no connect",
-			},
 			gPoolCtrl: gPoolControls {
 				startGameErr: "mock GamePool error message",
 			},
@@ -415,7 +441,7 @@ func TestHandler_OnGameStarted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testGame := newGameFromArgs(tt.gArgs)
-			gPool.AddGame(&testGame)
+			gPool.AddGame(testGame)
 			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
 			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
 			err := testHandler.OnGameStarted(tt.cArgs.gameid, tt.cArgs.creator)
@@ -429,6 +455,64 @@ func TestHandler_OnGameStarted(t *testing.T) {
 	}
 }
 
+func TestHandler_GetGameStatus(t *testing.T) {
+	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
+	require.NotNil(t, mongo, "Placeholder to use mongo mock -- remove if mocking not needed")
+	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
+	testGame := newGameFromArgs( 
+		gameArgs {
+			gameid: "statusChecker",
+			creator: "USOMEONE",
+			numPlayers: 7,
+		},
+	)
+	gPool.AddGame(testGame)
+	t.Run("positive", func(t *testing.T) {
+		statusReport, exists := testHandler.GetGameStatus("statusChecker")
+		require.True(t, exists, "Positive test should say the report exists")
+		require.NotNil(t, statusReport, "Status report should exist")
+	})
+	t.Run("missing game ID", func(t *testing.T) {
+		setGPoolControlsFromArgs(gPool, gPoolControls {
+			getGameErr: "(mock) missing ID",
+		})
+		statusReport, exists := testHandler.GetGameStatus("notme")
+		require.False(t, exists, "Negative test should say the report doesn't exist")
+		require.Equal(t, "", statusReport, "Status report should exist")
+	})
+}
+
+func TestHandler_GetGamesList(t *testing.T) {
+	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
+	require.NotNil(t, mongo, "Placeholder to use mongo mock -- remove if mocking not needed")
+	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
+	testGames := []*types.Game{ 
+		newGameFromArgs( 
+			gameArgs {
+				gameid: "list_fodder_1",
+				creator: "USOMEONE",
+				numPlayers: 1,
+			},
+		),
+		newGameFromArgs( 
+			gameArgs {
+				gameid: "list_fodder_2",
+				creator: "USOMEONE",
+				numPlayers: 2,
+			},
+		),
+	}
+	gPool.GamesToReturn = testGames
+
+	t.Run("positive", func(t *testing.T) {
+		gamesList := testHandler.GetGamesList()
+		require.NotNil(t, gamesList, "Games List should exist")
+		require.Contains(t, gamesList, "<h2>Games List</h2>")
+		require.Contains(t, gamesList, " timestamp: ")
+		require.Contains(t, gamesList, "list_fodder_1")
+		require.Contains(t, gamesList, "list_fodder_2")
+	})
+}
 
 /*** Helpers ***/
 
@@ -456,7 +540,7 @@ func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo
 // passcode 	string // default: melod
 // numPlayers	int    // default: 7
 // status  		types.GameStatus // default: Starting
-func newGameFromArgs(args gameArgs) types.Game {
+func newGameFromArgs(args gameArgs) *types.Game {
 	if args.killdict == "" { args.killdict = "afile.txt" }
 	if args.passcode == "" { args.passcode = "melod" }
 	if args.numPlayers == 0 { args.numPlayers = 7 }
@@ -466,13 +550,14 @@ func newGameFromArgs(args gameArgs) types.Game {
 	// TODO: validate that forcing the count is sufficient for tests or if mock playerpool is needed
 	myGame.StartPlayers = args.numPlayers
 
-	return myGame
+	return &myGame
 }
 
 func setGPoolControlsFromArgs(gpool *types.MockGamePool, args gPoolControls) {
 	gpool.AddGameError = args.addGameErr
 	gpool.AddPlayerError = args.addPlayerErr
 	gpool.CanAddError = args.canAddErr
+	gpool.GetGameError = args.getGameErr
 	gpool.StartGameError = args.startGameErr
 	gpool.GamesToReturn = args.gamesList
 }
