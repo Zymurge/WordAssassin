@@ -71,6 +71,9 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 		return
 	}
 	ms.logger.Printf("New MongoSession established for %s", ms.mongoURL)
+	if  err = ms.ConnectToMongo(); err != nil {
+		err = fmt.Errorf("MongoSession connect failure: %v", err)
+	}
 	return
 }
 
