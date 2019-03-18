@@ -1,13 +1,9 @@
 package persistence
 
 import (
-//	"github.com/mongodb/mongo-go-driver/mongo"
-	bson "go.mongodb.org/mongo-driver/bson"
-//	bson "github.com/mongodb/mongo-go-driver/bson"
-//	bsonx "github.com/mongodb/mongo-go-driver/x/bsonx"
-//	mongo "github.com/mongodb/mongo-go-driver/x/mongo/driver"
 	"fmt"
 
+	bson "go.mongodb.org/mongo-driver/bson"
 	mgo "gopkg.in/mgo.v2"
 )
 

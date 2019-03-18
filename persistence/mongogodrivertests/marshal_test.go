@@ -7,11 +7,11 @@ package mongogodrivertests
 
 /*
 import (
-//	bson "github.com/mongodb/mongo-go-driver/bson"
-	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	bson "go.mongodb.org/mongo-driver/bson"
+	"github.com/stretchr/testify/require"
 )
 
 type TestStruct struct {

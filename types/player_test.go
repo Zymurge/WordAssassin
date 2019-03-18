@@ -3,9 +3,6 @@ package types
 import (
 	"testing"
 	"github.com/stretchr/testify/require"
-//	"time"
-
-//	"github.com/mongodb/mongo-go-driver/bson"
 
 	events "wordassassin/types/events"
 )

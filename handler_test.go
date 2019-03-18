@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"log"
-
 	"testing"
+
 	"github.com/stretchr/testify/require"
 	
 	"wordassassin/types"

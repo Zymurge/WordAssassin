@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
-	"github.com/mongodb/mongo-go-driver/bson"	
+	bson "go.mongodb.org/mongo-driver/bson"
 	
 	events "wordassassin/types/events"
 	"wordassassin/slack"

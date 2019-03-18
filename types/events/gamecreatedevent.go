@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	bson "go.mongodb.org/mongo-driver/bson"
+
 	"wordassassin/slack"
-	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 // GameCreatedEvent is created once per game instance

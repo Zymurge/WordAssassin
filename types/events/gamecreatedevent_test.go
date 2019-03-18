@@ -2,11 +2,12 @@ package events
 
 import (
 	"testing"
-	"github.com/stretchr/testify/require"
 	"bytes"
 	"encoding/binary"
 	"time"
-	"github.com/mongodb/mongo-go-driver/bson"
+	
+	"github.com/stretchr/testify/require"
+	bson "go.mongodb.org/mongo-driver/bson"
 
 	"wordassassin/persistence"
 	"wordassassin/slack"

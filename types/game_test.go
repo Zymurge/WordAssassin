@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/require"
+	bson "go.mongodb.org/mongo-driver/bson"
 
 	events "wordassassin/types/events"
 	"wordassassin/slack"
