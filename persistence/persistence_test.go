@@ -11,7 +11,8 @@ import (
 	"time"
 
 	"github.com/globalsign/mgo"
-	bson "github.com/mongodb/mongo-go-driver/bson"
+	bson "go.mongodb.org/mongo-driver/bson"
+//	bson "github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )

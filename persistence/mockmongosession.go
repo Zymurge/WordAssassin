@@ -2,7 +2,8 @@ package persistence
 
 import (
 //	"github.com/mongodb/mongo-go-driver/mongo"
-	bson "github.com/mongodb/mongo-go-driver/bson"
+	bson "go.mongodb.org/mongo-driver/bson"
+//	bson "github.com/mongodb/mongo-go-driver/bson"
 //	bsonx "github.com/mongodb/mongo-go-driver/x/bsonx"
 //	mongo "github.com/mongodb/mongo-go-driver/x/mongo/driver"
 	"fmt"

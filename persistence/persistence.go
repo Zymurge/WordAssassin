@@ -8,12 +8,13 @@ import (
 	"time"
 	"context"
 
-	mongo "github.com/mongodb/mongo-go-driver/mongo"
-//	mongo "github.com/mongodb/mongo-go-driver/x/mongo/driver"
-//	bson "github.com/mongodb/mongo-go-driver/x/bsonx"
-	bson "github.com/mongodb/mongo-go-driver/bson"
-	conn "github.com/mongodb/mongo-go-driver/x/network/connstring"
-	options "github.com/mongodb/mongo-go-driver/mongo/options"
+	mongo "go.mongodb.org/mongo-driver/mongo"
+//	mongo "github.com/mongodb/mongo-go-driver/mongo"
+	bson "go.mongodb.org/mongo-driver/bson"
+//	bson "github.com/mongodb/mongo-go-driver/bson"
+	conn "go.mongodb.org/mongo-driver/x/network/connstring"
+	options "go.mongodb.org/mongo-driver/mongo/options"
+//	options "github.com/mongodb/mongo-go-driver/mongo/options"
 )
 
 // Persistable encapsulates the common features of any object that can be generically stored through this layer
@@ -78,8 +79,8 @@ func NewMongoSession(mongoURL string, dbName string, logger *log.Logger, overrid
 
 // ConnectToMongo creates a connection to the specified mongodb instance
 func (ms *MongoSession) ConnectToMongo() (err error) {
-	opts := options.Client().SetConnectTimeout(ms.timeoutSeconds).SetAppName("wordassassin")
-	ms.session, err = mongo.Connect(context.Background(), ms.mongoURL, opts)
+	opts := options.Client().SetConnectTimeout(ms.timeoutSeconds).SetAppName("wordassassin").ApplyURI(ms.mongoURL)
+	ms.session, err = mongo.Connect(context.Background(), opts)
 	if err != nil { return }
 	ms.db = ms.session.Database(ms.dbName)
 	err = ms.CheckConnection()
