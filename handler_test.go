@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	
+
+	dao "wordassassin/persistence"
+	"wordassassin/slack"
 	"wordassassin/types"
 	"wordassassin/types/events"
-	"wordassassin/slack"
-	dao "wordassassin/persistence"
 )
 
 // need to move this to a centralized place for tests
@@ -21,54 +21,54 @@ const (
 )
 
 type mongoControls struct {
-	connectMode  string       // positive
-	writeMode    string       // positive
-	returnVal    interface{}  // nil
+	connectMode string      	// positive
+	writeMode   string      	// positive
+	returnVal   interface{} 	// nil
 }
 
 type gPoolControls struct {
-	gamesList		[]*types.Game
-	returnVal		interface{}  // nil
-	addGameErr 		string       // default: ""
-	addPlayerErr 	string       // default: ""
-	canAddErr		string		 // default: ""
-	getGameErr	    string       // default: ""
-	startGameErr	string       // default: ""
+	gamesList    []*types.Game
+	returnVal    interface{} 	// nil
+	addGameErr   string      	// default: ""
+	addPlayerErr string      	// default: ""
+	canAddErr    string      	// default: ""
+	getGameErr   string      	// default: ""
+	startGameErr string      	// default: ""
 }
 
 type gameArgs struct {
-	gameid		 string // required
-	creator 	 string // required
-	killdict 	 string // default: afile.txt
-	passcode 	 string // default: melod
-	numPlayers	 int    // default: 7
-	status  	 types.GameStatus // default: Starting
+	gameid     string           // required
+	creator    string           // required
+	killdict   string           // default: afile.txt
+	passcode   string           // default: melod
+	numPlayers int              // default: 7
+	status     types.GameStatus // default: Starting
 }
 
 type playerArgs struct {
-	gameid 		 string // required
-	slackid 	 string // required
-	name		 string // default: playerX
-	email		 string // default: pX@game.org
-}	
+	gameid  string 				// required
+	slackid string 				// required
+	name    string 				// default: playerX
+	email   string 				// default: pX@game.org
+}
 
 // commandArgs used to send alternate args to commands than used to create games and players
 // all are optional
 type commandArgs struct {
-	gameid       string
-	creator      string
+	gameid  string
+	creator string
 }
 
 type testArgs struct {
-	name    	string         // required
-	h       	Handler        // the default testHandler
-	wantErr 	bool           // required
-	errText 	string         // ""
-	gArgs    	gameArgs       // required for game tests
-	pArgs    	playerArgs     // required for player tests
-	cArgs       commandArgs    // default nil
-	mongoCtrl  	mongoControls  // default mock controls
-	gPoolCtrl	gPoolControls  // default gPool controls
+	name      string        	// required
+	h         Handler       	// the default testHandler
+	wantErr   bool          	// required
+	errText   string        	// ""
+	gArgs     gameArgs      	// required for game tests
+	pArgs     playerArgs    	// required for player tests
+	cArgs     commandArgs   	// default nil
+	mongoCtrl mongoControls 	// default mock controls
+	gPoolCtrl gPoolControls 	// default gPool controls
 }
 
 func TestHandlerCtorPositive(t *testing.T) {
@@ -93,98 +93,98 @@ func TestHandlerCtorNilPointers(t *testing.T) {
 	logLabel := "handler_ctortest: "
 	blog := log.New(logBuf, logLabel, 0)
 
-	require.PanicsWithValue(t, "GamePool argument is nil", func(){ NewHandler(nil, mongo, blog) })
-	require.PanicsWithValue(t, "MongoSession argument is nil", func(){ NewHandler(testGPool, nil, blog) })
-	require.PanicsWithValue(t, "Logger argument is nil", func(){ NewHandler(testGPool, mongo, nil) })
+	require.PanicsWithValue(t, "GamePool argument is nil", func() { NewHandler(nil, mongo, blog) })
+	require.PanicsWithValue(t, "MongoSession argument is nil", func() { NewHandler(testGPool, nil, blog) })
+	require.PanicsWithValue(t, "Logger argument is nil", func() { NewHandler(testGPool, mongo, nil) })
 }
 
 func TestHandler_OnPlayerAdded(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
-	tests := []testArgs {
-		testArgs { name: "positive",
+	tests := []testArgs{
+		testArgs{name: "positive",
 			wantErr: false,
-			pArgs: playerArgs {
-				gameid: "game1", 
+			pArgs: playerArgs{
+				gameid:  "game1",
 				slackid: "UFRED",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
 		},
-		testArgs { name: "invalid game ID",
+		testArgs{name: "invalid game ID",
 			wantErr: true,
 			errText: "OnPlayerAdded: The request is missing GameID",
-			pArgs: playerArgs {
-				gameid: "", 
+			pArgs: playerArgs{
+				gameid:  "",
 				slackid: "UCREATEDME",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
 		},
-		testArgs { name: "invalid slack ID",
+		testArgs{name: "invalid slack ID",
 			wantErr: true,
 			errText: "OnPlayerAdded: Player does not have a valid Slack ID",
-			pArgs: playerArgs {
-				gameid: "game1", 
+			pArgs: playerArgs{
+				gameid:  "game1",
 				slackid: "notValid",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
 		},
-		testArgs { name: "invalid game state",
+		testArgs{name: "invalid game state",
 			wantErr: true,
 			errText: "OnPlayerAdded: game startedgame: (mock) message about state",
-			pArgs: playerArgs {
-				gameid: "startedgame", 
+			pArgs: playerArgs{
+				gameid:  "startedgame",
 				slackid: "UCREATEDME",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
-			gPoolCtrl: gPoolControls {
-				canAddErr: "(mock) message about state"	,			
+			gPoolCtrl: gPoolControls{
+				canAddErr: "(mock) message about state",
 			},
 		},
-		testArgs { name: "duplicate players",
+		testArgs{name: "duplicate players",
 			wantErr: true,
 			errText: "OnPlayerAdded: Player UALREADYEXIST already added to game Dupity",
-			pArgs: playerArgs {
-				gameid: "Dupity", 
+			pArgs: playerArgs{
+				gameid:  "Dupity",
 				slackid: "UALREADYEXIST",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
-			mongoCtrl: mongoControls {
+			mongoCtrl: mongoControls{
 				connectMode: "positive",
-				writeMode: "duplicate",
-				returnVal: nil,
+				writeMode:   "duplicate",
+				returnVal:   nil,
 			},
 		},
-		testArgs { name: "mongo issue",
+		testArgs{name: "mongo issue",
 			wantErr: true,
 			errText: "OnPlayerAdded: Mongodb write issue: Mock error on write",
-			pArgs: playerArgs {
-				gameid: "Dupity", 
+			pArgs: playerArgs{
+				gameid:  "Dupity",
 				slackid: "UALREADYEXIST",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
-			mongoCtrl: mongoControls {
+			mongoCtrl: mongoControls{
 				connectMode: "positive",
-				writeMode: "fail",
-				returnVal: nil,
+				writeMode:   "fail",
+				returnVal:   nil,
 			},
 		},
-		testArgs { name: "gamepool issue",
+		testArgs{name: "gamepool issue",
 			wantErr: true,
 			errText: "OnPlayerAdded: (mock) gamepool puke",
-			pArgs: playerArgs {
-				gameid: "Dupity", 
+			pArgs: playerArgs{
+				gameid:  "Dupity",
 				slackid: "UALREADYEXIST",
-				name: "fred",
-				email: "fred@bedrock.org",
+				name:    "fred",
+				email:   "fred@bedrock.org",
 			},
-			gPoolCtrl: gPoolControls {
-				addPlayerErr: "(mock) gamepool puke",			
+			gPoolCtrl: gPoolControls{
+				addPlayerErr: "(mock) gamepool puke",
 			},
 		},
 	}
@@ -200,13 +200,14 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 			err := testHandler.OnPlayerAdded(tt.pArgs.gameid, tt.pArgs.slackid, tt.pArgs.name, tt.pArgs.email)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
+				require.Contains(t, err.Error(), "OnPlayerAdded:", "All errors should start with the func name", tt.errText)
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
-			// TODO: add validations
-			//	actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
-			//	require.NotNilf(t, exists, "Expected ID: %s to exist in the gamepool", tt.gArgs.gameid)
-			//	require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
+				// TODO: add validations
+				//	actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
+				//	require.NotNilf(t, exists, "Expected ID: %s to exist in the gamepool", tt.gArgs.gameid)
+				//	require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
 			}
 		})
 	}
@@ -216,146 +217,146 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 func TestHandler_OnGameCreated(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
-	tests := []testArgs {
-		testArgs { name: "positive",
+	tests := []testArgs{
+		testArgs{name: "positive",
 			wantErr: false,
-			gArgs: gameArgs {
-				gameid: "game1",
-				creator: "UFRED",
+			gArgs: gameArgs{
+				gameid:   "game1",
+				creator:  "UFRED",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			cArgs: commandArgs {
-				gameid: "game1",
+			cArgs: commandArgs{
+				gameid:  "game1",
 				creator: "UFRED",
 			},
 		},
-		testArgs { name: "empty gameID argument",
+		testArgs{name: "empty gameID argument",
 			wantErr: true,
 			errText: "OnGameCreated: The request is missing GameID",
-			gArgs: gameArgs {
-				gameid: "",
-				creator: "UNOTBLANK",
+			gArgs: gameArgs{
+				gameid:   "",
+				creator:  "UNOTBLANK",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
 		},
-		testArgs { name: "empty creator argument",
+		testArgs{name: "empty creator argument",
 			wantErr: true,
 			errText: "OnGameCreated: A valid Slack ID",
-			gArgs: gameArgs {
-				gameid: "notblank",
-				creator: "",
+			gArgs: gameArgs{
+				gameid:   "notblank",
+				creator:  "",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
 		},
-		testArgs { name: "empty killdict argument",
+		testArgs{name: "empty killdict argument",
 			wantErr: true,
 			errText: "OnGameCreated: The request is missing Killdict",
-			gArgs: gameArgs {
-				gameid: "notblank",
-				creator: "UNOTBLANK",
+			gArgs: gameArgs{
+				gameid:   "notblank",
+				creator:  "UNOTBLANK",
 				killdict: "",
 				passcode: "notBlank",
 			},
 		},
-		testArgs { name: "empty passcode argument",
+		testArgs{name: "empty passcode argument",
 			wantErr: true,
 			errText: "OnGameCreated: The request is missing Passcode",
-			gArgs: gameArgs {
-				gameid: "notblank",
-				creator: "UNOTBLANK",
+			gArgs: gameArgs{
+				gameid:   "notblank",
+				creator:  "UNOTBLANK",
 				killdict: "notBlank",
 				passcode: "",
 			},
 		},
-		testArgs { name: "force NewGameCreatedEvent error",
+		testArgs{name: "force NewGameCreatedEvent error",
 			wantErr: true,
 			errText: "valid Slack ID",
-			gArgs: gameArgs {
-				gameid: "notblank",
-				creator: "invalid format",
+			gArgs: gameArgs{
+				gameid:   "notblank",
+				creator:  "invalid format",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
 		},
-		testArgs { name: "duplicate gameID (at mongo)",
+		testArgs{name: "duplicate gameID (at mongo)",
 			wantErr: true,
 			errText: "dupe_game already created",
-			gArgs: gameArgs {
-				gameid: "dupe_game",
-				creator: "UTESTMASTER",
+			gArgs: gameArgs{
+				gameid:   "dupe_game",
+				creator:  "UTESTMASTER",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls {
+			mongoCtrl: mongoControls{
 				connectMode: "positive",
-				writeMode: "duplicate",
-				returnVal: nil,
+				writeMode:   "duplicate",
+				returnVal:   nil,
 			},
 		},
-		testArgs { name: "duplicate gameID (GamePool)",
+		testArgs{name: "duplicate gameID (GamePool)",
 			wantErr: true,
 			errText: "GamePool out of sync",
-			gArgs: gameArgs {
-				gameid: "dupe_game",
-				creator: "UTESTMASTER",
+			gArgs: gameArgs{
+				gameid:   "dupe_game",
+				creator:  "UTESTMASTER",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls {
+			mongoCtrl: mongoControls{
 				connectMode: "positive",
-				writeMode: "positive",
-				returnVal: nil,
+				writeMode:   "positive",
+				returnVal:   nil,
 			},
-			gPoolCtrl: gPoolControls {
+			gPoolCtrl: gPoolControls{
 				addGameErr: "duplicate",
 			},
 		},
-		testArgs { name: "mongo fail",
+		testArgs{name: "mongo fail",
 			wantErr: true,
 			errText: "connect",
-			gArgs: gameArgs {
-				gameid: "fail",
-				creator: "UWILLFAIL",
+			gArgs: gameArgs{
+				gameid:   "fail",
+				creator:  "UWILLFAIL",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls {
+			mongoCtrl: mongoControls{
 				connectMode: "no connect",
-				writeMode: "positive",
-				returnVal: nil,
+				writeMode:   "positive",
+				returnVal:   nil,
 			},
 		},
-		testArgs { name: "GamePool unknown error",
+		testArgs{name: "GamePool unknown error",
 			wantErr: true,
 			errText: "Issue on GameCreated add to GamePool: mock error",
-			gArgs: gameArgs {
-				gameid: "Bob",
-				creator: "UWILLFAIL",
+			gArgs: gameArgs{
+				gameid:   "Bob",
+				creator:  "UWILLFAIL",
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls {
+			mongoCtrl: mongoControls{
 				connectMode: "positive",
-				writeMode: "positive",
-				returnVal: nil,
+				writeMode:   "positive",
+				returnVal:   nil,
 			},
-			gPoolCtrl: gPoolControls {
+			gPoolCtrl: gPoolControls{
 				addGameErr: "mock error",
 			},
 		},
 	}
 
 	// Add a game for tests that need a pre-existing id
-	gPool.AddGame( &types.Game{
-			ID:             "dupe_game",
-			//TimeCreated:    time.Now(),
-			GameCreator:    "UTESTMASTER",
-			KillDictionary: "websters",
-			Status:         types.Starting,
-		} )
+	gPool.AddGame(&types.Game{
+		ID: "dupe_game",
+		//TimeCreated:    time.Now(),
+		GameCreator:    "UTESTMASTER",
+		KillDictionary: "websters",
+		Status:         types.Starting,
+	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -364,6 +365,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 			err := testHandler.OnGameCreated(tt.gArgs.gameid, tt.gArgs.creator, tt.gArgs.killdict, tt.gArgs.passcode)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
+				require.Contains(t, err.Error(), "OnGameCreated:", "All errors should start with the func name", tt.errText)
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
@@ -378,61 +380,60 @@ func TestHandler_OnGameCreated(t *testing.T) {
 func TestHandler_OnGameStarted(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
-	tests := []testArgs {
-		testArgs { name: "positive",
+	tests := []testArgs{
+		testArgs{name: "positive",
 			wantErr: false,
-			gArgs: gameArgs {
-				gameid: "game1",
-				creator: "UFRED",
+			gArgs: gameArgs{
+				gameid:     "game1",
+				creator:    "UFRED",
 				numPlayers: 7,
 			},
-			cArgs: commandArgs {
-				gameid: "game1",
+			cArgs: commandArgs{
+				gameid:  "game1",
 				creator: "UFRED",
 			},
 		},
-		testArgs { name: "bad Slack ID",
+		testArgs{name: "bad Slack ID",
 			wantErr: true,
 			errText: "OnGameStarted: A valid Slack ID",
-			gArgs: gameArgs {
-				gameid: "game1",
-				creator: "UNOMATTER",
+			gArgs: gameArgs{
+				gameid:     "game1",
+				creator:    "UNOMATTER",
 				numPlayers: 7,
 			},
-			cArgs: commandArgs {
-				gameid: "game1",
+			cArgs: commandArgs{
+				gameid:  "game1",
 				creator: "I_no_valido",
 			},
 		},
-		testArgs { name: "missing game ID",
+		testArgs{name: "missing game ID",
 			wantErr: true,
 			errText: "OnGameStarted: (mock) not a valid Game ID",
-			gArgs: gameArgs {
-				gameid: "game1",
-				creator: "UNOMATTER",
+			gArgs: gameArgs{
+				gameid:     "game1",
+				creator:    "UNOMATTER",
 				numPlayers: 7,
 			},
-			cArgs: commandArgs {
-				gameid: "",
+			cArgs: commandArgs{
+				gameid:  "",
 				creator: "UCREATE",
 			},
-			gPoolCtrl: gPoolControls {
+			gPoolCtrl: gPoolControls{
 				startGameErr: "(mock) not a valid Game ID",
 			},
-
 		},
-		testArgs { name: "GamePool returns an error",
+		testArgs{name: "GamePool returns an error",
 			wantErr: true,
-			errText: "mock GamePool error message", 
-			gArgs: gameArgs {
-				gameid: "error me",
+			errText: "mock GamePool error message",
+			gArgs: gameArgs{
+				gameid:  "error me",
 				creator: "USOMEONE",
 			},
-			cArgs: commandArgs {
-				gameid: "error me",
+			cArgs: commandArgs{
+				gameid:  "error me",
 				creator: "USOMEONE",
 			},
-			gPoolCtrl: gPoolControls {
+			gPoolCtrl: gPoolControls{
 				startGameErr: "mock GamePool error message",
 			},
 		},
@@ -447,6 +448,7 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			err := testHandler.OnGameStarted(tt.cArgs.gameid, tt.cArgs.creator)
 			if tt.wantErr {
 				require.Errorf(t, err, "Was looking for an error containing '%s' but got none", tt.errText)
+				require.Contains(t, err.Error(), "OnGameStarted:", "All errors should start with the func name", tt.errText)
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
@@ -459,10 +461,10 @@ func TestHandler_GetGameStatus(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, mongo, "Placeholder to use mongo mock -- remove if mocking not needed")
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
-	testGame := newGameFromArgs( 
-		gameArgs {
-			gameid: "statusChecker",
-			creator: "USOMEONE",
+	testGame := newGameFromArgs(
+		gameArgs{
+			gameid:     "statusChecker",
+			creator:    "USOMEONE",
 			numPlayers: 7,
 		},
 	)
@@ -473,7 +475,7 @@ func TestHandler_GetGameStatus(t *testing.T) {
 		require.NotNil(t, statusReport, "Status report should exist")
 	})
 	t.Run("missing game ID", func(t *testing.T) {
-		setGPoolControlsFromArgs(gPool, gPoolControls {
+		setGPoolControlsFromArgs(gPool, gPoolControls{
 			getGameErr: "(mock) missing ID",
 		})
 		statusReport, exists := testHandler.GetGameStatus("notme")
@@ -486,18 +488,18 @@ func TestHandler_GetGamesList(t *testing.T) {
 	testHandler, mongo, gPool, blog := getHandlerWithMocksAndLogger(t)
 	require.NotNil(t, mongo, "Placeholder to use mongo mock -- remove if mocking not needed")
 	require.NotNil(t, blog, "Placeholder to use blog -- remove when log validation added")
-	testGames := []*types.Game{ 
-		newGameFromArgs( 
-			gameArgs {
-				gameid: "list_fodder_1",
-				creator: "USOMEONE",
+	testGames := []*types.Game{
+		newGameFromArgs(
+			gameArgs{
+				gameid:     "list_fodder_1",
+				creator:    "USOMEONE",
 				numPlayers: 1,
 			},
 		),
-		newGameFromArgs( 
-			gameArgs {
-				gameid: "list_fodder_2",
-				creator: "USOMEONE",
+		newGameFromArgs(
+			gameArgs{
+				gameid:     "list_fodder_2",
+				creator:    "USOMEONE",
 				numPlayers: 2,
 			},
 		),
@@ -518,8 +520,8 @@ func TestHandler_GetGamesList(t *testing.T) {
 
 func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo *dao.MockMongoSession, mockGPool *types.MockGamePool, logBuf *bytes.Buffer) {
 	mockMongo = dao.NewMockMongoSession()
-	mockGames := []*types.Game {
-		&types.Game{ ID: "mockity", GameCreator: "UGOD" },
+	mockGames := []*types.Game{
+		&types.Game{ID: "mockity", GameCreator: "UGOD"},
 	}
 	mockGPool = &types.MockGamePool{
 		GamesToReturn: mockGames,
@@ -541,10 +543,16 @@ func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo
 // numPlayers	int    // default: 7
 // status  		types.GameStatus // default: Starting
 func newGameFromArgs(args gameArgs) *types.Game {
-	if args.killdict == "" { args.killdict = "afile.txt" }
-	if args.passcode == "" { args.passcode = "melod" }
-	if args.numPlayers == 0 { args.numPlayers = 7 }
-	
+	if args.killdict == "" {
+		args.killdict = "afile.txt"
+	}
+	if args.passcode == "" {
+		args.passcode = "melod"
+	}
+	if args.numPlayers == 0 {
+		args.numPlayers = 7
+	}
+
 	gce, _ := events.NewGameCreatedEvent(args.gameid, slack.NewInline(args.creator), args.killdict, args.passcode)
 	myGame := types.NewGameFromEvent(gce)
 	// TODO: validate that forcing the count is sufficient for tests or if mock playerpool is needed
@@ -562,17 +570,16 @@ func setGPoolControlsFromArgs(gpool *types.MockGamePool, args gPoolControls) {
 	gpool.GamesToReturn = args.gamesList
 }
 
-
 func setMongoControlsFromArgs(mongo *dao.MockMongoSession, args mongoControls) {
 	if args.connectMode == "" {
 		mongo.ConnectMode = "positive"
 	} else {
-		mongo.ConnectMode = args.connectMode		
+		mongo.ConnectMode = args.connectMode
 	}
 	if args.writeMode == "" {
 		mongo.WriteMode = "positive"
 	} else {
-		mongo.WriteMode = args.writeMode		
+		mongo.WriteMode = args.writeMode
 	}
 }
 
@@ -585,7 +592,7 @@ func createGameWithPlayers(h Handler, gameid string, numPlayers int) {
 
 	for i := 0; i < numPlayers; i++ {
 		name := string("player#" + i)
-		pae, _ := events.NewPlayerAddedEvent(gameid, "@" + name, name, name + "@some.org") 
+		pae, _ := events.NewPlayerAddedEvent(gameid, "@" + name, name, name + "@some.org")
 		p := types.NewPlayerFromEvent(pae)
 		h.pPool.AddPlayer(p)
 	}

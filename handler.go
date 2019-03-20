@@ -12,8 +12,6 @@ import (
 	slack "wordassassin/slack"
 )
 
-// TODO: standardize all err messages to prefix with handler func
-
 // Handler contains the context necessary to process events and put everything where it belongs. Needs to be aware
 // of persistence, the game pool, the player pool, etc
 type Handler struct {
