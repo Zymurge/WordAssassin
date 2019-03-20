@@ -17,6 +17,14 @@ The game ends when the 2nd to last person registers their death, leaving the las
 
 ## APIs
 
+- ###  **AddPlayer** *game-id player-tag*
+
+- ###  **CreateGame** *game-id creator kill-dictionary passcode*
+  
+- ###  **GetGameList**
+
+- ###  **ReportKill** *game-id assassinated-by*
+
 - ###  **Status** *game-id*
         Game: <name>
         Status: {"starting" "running" "finished"}
@@ -26,12 +34,6 @@ The game ends when the 2nd to last person registers their death, leaving the las
             Starting: num
             Alive: num
 
-- ###  CreateGame *game-id creator kill-dictionary passcode*
-  
-- ###  AddPlayer *game-id player-tag*
-
-- ###  StartGame *game-id*
-
-- ###  ReportKill *game-id assassinated-by*
+- ###  **StartGame** *game-id creator*
 
 - ###  Target
