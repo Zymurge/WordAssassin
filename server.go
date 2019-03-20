@@ -86,6 +86,16 @@ func startGame(c echo.Context) error {
 	return c.HTML(http.StatusOK, message)
 }	
 
+func setRoutes(e *echo.Echo) {
+	e.GET ("/", healthCheck)
+	e.POST("/addplayer/:gameid/:slackid", addPlayer)
+	e.POST("/creategame/:gameid", createGame)
+	e.GET ("/gamestatus/:gameid", getGameStatus)
+	e.GET ("/gamelist", getGameList)
+	e.GET ("/health", healthCheck)
+	e.POST("/startgame/:gameid/:slackid", startGame)
+}
+
 func main() {
 	var err error
 	logger = log.New(os.Stderr, "WordAssassin: ", log.Ldate|log.Ltime)
@@ -114,13 +124,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	// Routes
-	e.GET ("/", healthCheck)
-	e.POST("/addplayer/:gameid/:slackid", addPlayer)
-	e.POST("/creategame/:gameid", createGame)
-	e.GET ("/gamestatus/:gameid", getGameStatus)
-	e.GET ("/gamelist", getGameList)
-	e.GET ("/health", healthCheck)
-	e.POST("/startgame/:gameid/:slackid", startGame)
+	setRoutes(e)
 
 	// Start server
 	e.Logger.Fatal(e.Start(port))
