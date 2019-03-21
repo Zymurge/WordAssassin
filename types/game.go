@@ -109,10 +109,9 @@ func (g *Game) Start(players []*Player) error {
 		return fmt.Errorf("Game not in starting state. Current state is %s", g.GetStatus())
 	}
 	// make sure something isn't horribly wrong in accounting
-	// TODO: reenable after fixing tests in handler_test
-	// if g.StartPlayers != len(players) {
-	// 	panic( fmt.Sprintf("Game: %s.StartPlayers=%d, PlayerPool count=%d", g.GetID(), g.StartPlayers, len(players))	)	
-	// }
+	if g.StartPlayers != len(players) {
+		panic( fmt.Sprintf("Game: %s.StartPlayers=%d, PlayerPool count=%d", g.GetID(), g.StartPlayers, len(players))	)	
+	}
 	if g.StartPlayers < g.MinimumPlayers {
 		return fmt.Errorf("Game requires %d players. Current count is %d", g.MinimumPlayers, g.StartPlayers)
 	}

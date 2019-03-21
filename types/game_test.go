@@ -86,7 +86,8 @@ func TestStart(t *testing.T) {
 		unfilledGame := NewGameFromEvent(ev)
 		unfilledGame.MinimumPlayers = minExpected
 		unfilledGame.StartPlayers = numPlayers
-		err := unfilledGame.Start(players)
+		notEnough := generatePlayers(unfilledGame.ID, 5)
+		err := unfilledGame.Start(notEnough)
 		require.Error(t, err, "Expect an error when status is not 'starting'")
 		expectedMsg := fmt.Sprintf("Game requires %d players. Current count is %d", minExpected, numPlayers)
 		require.Contains(t, err.Error(), expectedMsg)
