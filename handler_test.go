@@ -373,7 +373,6 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			gArgs: gameArgs{
 				gameid:     "game1",
 				creator:    "UFRED",
-				numPlayers: 7,
 			},
 			cArgs: commandArgs{
 				gameid:  "game1",
@@ -386,7 +385,6 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			gArgs: gameArgs{
 				gameid:     "game1",
 				creator:    "UNOMATTER",
-				numPlayers: 7,
 			},
 			cArgs: commandArgs{
 				gameid:  "game1",
@@ -399,7 +397,6 @@ func TestHandler_OnGameStarted(t *testing.T) {
 			gArgs: gameArgs{
 				gameid:     "game1",
 				creator:    "UNOMATTER",
-				numPlayers: 7,
 			},
 			cArgs: commandArgs{
 				gameid:  "",
@@ -527,7 +524,7 @@ func getHandlerWithMocksAndLogger(t *testing.T) (testHandler *Handler, mockMongo
 // creator 		string // required
 // killdict 	string // default: afile.txt
 // passcode 	string // default: melod
-// numPlayers	int    // default: 7
+// numPlayers	int    // required
 // status  		types.GameStatus // default: Starting
 func newGameFromArgs(args gameArgs) *types.Game {
 	if args.killdict == "" {
@@ -536,13 +533,9 @@ func newGameFromArgs(args gameArgs) *types.Game {
 	if args.passcode == "" {
 		args.passcode = "melod"
 	}
-	if args.numPlayers == 0 {
-		args.numPlayers = 7
-	}
 
 	gce, _ := events.NewGameCreatedEvent(args.gameid, slack.NewInline(args.creator), args.killdict, args.passcode)
 	myGame := types.NewGameFromEvent(gce)
-	// TODO: validate that forcing the count is sufficient for tests or if mock playerpool is needed
 	myGame.StartPlayers = args.numPlayers
 
 	return &myGame
