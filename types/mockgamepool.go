@@ -7,6 +7,17 @@ import (
 	"wordassassin/slack"
 )
 
+// AddGameCall persists params from AddGame
+type AddGameCall struct {
+	Added			*Game
+}
+
+// PlayerAddedCall persists params from AddPlayerToGame
+type PlayerAddedCall struct {
+	GameID			string
+	Event			events.PlayerAddedEvent
+}
+
 // MockGamePool provides a test mock for GamePool dependencies
 type MockGamePool struct {
 	GamesToReturn   []*Game
@@ -15,10 +26,15 @@ type MockGamePool struct {
 	CanAddError     string
 	GetGameError    string
 	StartGameError  string
+	GameAdded	 	AddGameCall
+	PlayerAdded 	PlayerAddedCall
 }
 
 // AddGame mock
 func (mgp *MockGamePool) AddGame(game *Game) error {
+	mgp.GameAdded = AddGameCall {
+		Added: game,
+	}
 	if mgp.AddGameError != "" {
 		return fmt.Errorf(mgp.AddGameError)
 	}
@@ -27,12 +43,15 @@ func (mgp *MockGamePool) AddGame(game *Game) error {
 
 // AddPlayerToGame mock
 func (mgp *MockGamePool) AddPlayerToGame(gameid string, ev events.PlayerAddedEvent) error {
+	mgp.PlayerAdded = PlayerAddedCall {
+		GameID: gameid,
+		Event: ev,
+	}
 	if mgp.AddPlayerError != "" {
 		return fmt.Errorf(mgp.AddPlayerError)
 	}
 	return nil
 }
-
 
 // CanAddPlayers mock
 // return options true, nil or false, err from CanAddError

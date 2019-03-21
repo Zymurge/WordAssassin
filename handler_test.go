@@ -204,14 +204,11 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
-				// TODO: add validations
-				//	actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
-				//	require.NotNilf(t, exists, "Expected ID: %s to exist in the gamepool", tt.gArgs.gameid)
-				//	require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
+				require.Equal(t, tt.pArgs.gameid, gPool.PlayerAdded.GameID, "OnPlayerAdded mock did not recieve the correct gameid" )
+				require.Equal(t, tt.pArgs.slackid, gPool.PlayerAdded.Event.SlackID.ToString(), "OnPlayerAdded mock did not recieve the correct slackid in the event")
 			}
 		})
 	}
-
 }
 
 func TestHandler_OnGameCreated(t *testing.T) {
@@ -349,15 +346,6 @@ func TestHandler_OnGameCreated(t *testing.T) {
 		},
 	}
 
-	// Add a game for tests that need a pre-existing id
-	gPool.AddGame(&types.Game{
-		ID: "dupe_game",
-		//TimeCreated:    time.Now(),
-		GameCreator:    "UTESTMASTER",
-		KillDictionary: "websters",
-		Status:         types.Starting,
-	})
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
@@ -369,9 +357,8 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				require.Contains(t, err.Error(), tt.errText, "Got an error but didn't find '%s' in the content", tt.errText)
 			} else {
 				require.NoErrorf(t, err, "Was expecting successful call, but got err: %v", err)
-				actual, exists := testHandler.gPool.GetGame(tt.gArgs.gameid)
-				require.NotNilf(t, exists, "Expected ID: %s to exist in the gamepool", tt.gArgs.gameid)
-				require.Equal(t, tt.cArgs.gameid, actual.GetID(), "Didn't find game added despite success")
+				require.Equal(t, tt.gArgs.gameid, gPool.GameAdded.Added.ID, "AddGame mock did not recieve the correct gameid" )
+				require.Equal(t, tt.gArgs.creator, gPool.GameAdded.Added.GameCreator.ToString(), "AddGame mock did not recieve the correct creator" )
 			}
 		})
 	}

@@ -42,7 +42,8 @@ func NewHandler(gp types.GamePoolAbstraction, m persistence.MongoAbstraction, l 
 }
 
 // OnGameCreated handles coordination when a game is created for this server.
-// A unique game ID is created here.
+// -- An event is created and persisted to mongo
+// -- The new game is added to the game pool
 // Errors:
 // -- validation errors on all params
 // -- duplicate game created (GameID already exists)
