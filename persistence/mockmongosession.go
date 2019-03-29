@@ -26,6 +26,8 @@ func NewMockMongoSession() *MockMongoSession {
 	return &mm
 }
 
+//** Mock interface functions **//
+
 // ConnectToMongo mock. Controlled by mm.ConnectMode values 'positive' and 'no connect'
 func (mm *MockMongoSession) ConnectToMongo() error {
 	switch {
@@ -136,4 +138,30 @@ func (mm *MockMongoSession) DeleteFromCollection(collectionName string, id strin
 		return &err
 	}
 	return fmt.Errorf("Unknown mode for DeleteFromCollection: %s", mm.QueryMode)
+}
+
+//** Mock control functions **//
+
+// MongoControls provides pre-defined control options for the mock
+type MongoControls struct {
+	ConnectMode string      	// positive
+	WriteMode   string      	// positive
+	ReturnVal   Persistable 	// nil
+}
+
+// SetMongoControlsFromArgs allows dynamic setting of the mock instance behavior based on the pre-defined control options
+// Defaults (or restores) unspecified settings per the MongoControls spec
+func (mm *MockMongoSession) SetMongoControlsFromArgs(args MongoControls) {
+	if args.ConnectMode == "" {
+		mm.ConnectMode = "positive"
+	} else {
+		mm.ConnectMode = args.ConnectMode
+	}
+	if args.WriteMode == "" {
+		mm.WriteMode = "positive"
+	} else {
+		mm.WriteMode = args.WriteMode
+	}
+	mm.FetchResult = args.ReturnVal
+	// TODO: extend for multiple return values
 }

@@ -20,12 +20,6 @@ const (
 	TestCollection string = "TestCollection"
 )
 
-type mongoControls struct {
-	connectMode string      	// positive
-	writeMode   string      	// positive
-	returnVal   interface{} 	// nil
-}
-
 type gPoolControls struct {
 	gamesList    []*types.Game
 	returnVal    interface{} 	// nil
@@ -67,7 +61,7 @@ type testArgs struct {
 	gArgs     gameArgs      	// required for game tests
 	pArgs     playerArgs    	// required for player tests
 	cArgs     commandArgs   	// default nil
-	mongoCtrl mongoControls 	// default mock controls
+	mongoCtrl dao.MongoControls // default mock controls
 	gPoolCtrl gPoolControls 	// default gPool controls
 }
 
@@ -153,10 +147,10 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				name:    "fred",
 				email:   "fred@bedrock.org",
 			},
-			mongoCtrl: mongoControls{
-				connectMode: "positive",
-				writeMode:   "duplicate",
-				returnVal:   nil,
+			mongoCtrl: dao.MongoControls{
+				ConnectMode: "positive",
+				WriteMode:   "duplicate",
+				ReturnVal:   nil,
 			},
 		},
 		testArgs{name: "mongo issue",
@@ -168,10 +162,10 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 				name:    "fred",
 				email:   "fred@bedrock.org",
 			},
-			mongoCtrl: mongoControls{
-				connectMode: "positive",
-				writeMode:   "fail",
-				returnVal:   nil,
+			mongoCtrl: dao.MongoControls{
+				ConnectMode: "positive",
+				WriteMode:   "fail",
+				ReturnVal:   nil,
 			},
 		},
 		testArgs{name: "gamepool issue",
@@ -195,7 +189,7 @@ func TestHandler_OnPlayerAdded(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
+			mongo.SetMongoControlsFromArgs(tt.mongoCtrl)
 			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
 			err := testHandler.OnPlayerAdded(tt.pArgs.gameid, tt.pArgs.slackid, tt.pArgs.name, tt.pArgs.email)
 			if tt.wantErr {
@@ -287,10 +281,10 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls{
-				connectMode: "positive",
-				writeMode:   "duplicate",
-				returnVal:   nil,
+			mongoCtrl: dao.MongoControls{
+				ConnectMode: "positive",
+				WriteMode:   "duplicate",
+				ReturnVal:   nil,
 			},
 		},
 		testArgs{name: "duplicate gameID (GamePool)",
@@ -302,10 +296,10 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls{
-				connectMode: "positive",
-				writeMode:   "positive",
-				returnVal:   nil,
+			mongoCtrl: dao.MongoControls{
+				ConnectMode: "positive",
+				WriteMode:   "positive",
+				ReturnVal:   nil,
 			},
 			gPoolCtrl: gPoolControls{
 				addGameErr: "duplicate",
@@ -320,10 +314,10 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls{
-				connectMode: "no connect",
-				writeMode:   "positive",
-				returnVal:   nil,
+			mongoCtrl: dao.MongoControls{
+				ConnectMode: "no connect",
+				WriteMode:   "positive",
+				ReturnVal:   nil,
 			},
 		},
 		testArgs{name: "GamePool unknown error",
@@ -335,10 +329,10 @@ func TestHandler_OnGameCreated(t *testing.T) {
 				killdict: "notBlank",
 				passcode: "notBlank",
 			},
-			mongoCtrl: mongoControls{
-				connectMode: "positive",
-				writeMode:   "positive",
-				returnVal:   nil,
+			mongoCtrl: dao.MongoControls{
+				ConnectMode: "positive",
+				WriteMode:   "positive",
+				ReturnVal:   nil,
 			},
 			gPoolCtrl: gPoolControls{
 				addGameErr: "mock error",
@@ -348,7 +342,7 @@ func TestHandler_OnGameCreated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
+			mongo.SetMongoControlsFromArgs(tt.mongoCtrl)
 			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
 			err := testHandler.OnGameCreated(tt.gArgs.gameid, tt.gArgs.creator, tt.gArgs.killdict, tt.gArgs.passcode)
 			if tt.wantErr {
@@ -427,7 +421,7 @@ func TestHandler_OnGameStarted(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testGame := newGameFromArgs(tt.gArgs)
 			gPool.AddGame(testGame)
-			setMongoControlsFromArgs(mongo, tt.mongoCtrl)
+			mongo.SetMongoControlsFromArgs(tt.mongoCtrl)
 			setGPoolControlsFromArgs(gPool, tt.gPoolCtrl)
 			err := testHandler.OnGameStarted(tt.cArgs.gameid, tt.cArgs.creator)
 			if tt.wantErr {
@@ -548,19 +542,6 @@ func setGPoolControlsFromArgs(gpool *types.MockGamePool, args gPoolControls) {
 	gpool.GetGameError = args.getGameErr
 	gpool.StartGameError = args.startGameErr
 	gpool.GamesToReturn = args.gamesList
-}
-
-func setMongoControlsFromArgs(mongo *dao.MockMongoSession, args mongoControls) {
-	if args.connectMode == "" {
-		mongo.ConnectMode = "positive"
-	} else {
-		mongo.ConnectMode = args.connectMode
-	}
-	if args.writeMode == "" {
-		mongo.WriteMode = "positive"
-	} else {
-		mongo.WriteMode = args.writeMode
-	}
 }
 
 /*
