@@ -33,35 +33,39 @@ type MongoSessionSuite struct {
 
 //*** Test Assets ***//
 
-// GenericPersistable is created for each time a player is added to the game
-type GenericPersistable struct {
-	ID          string    `json:"id" bson:"_id"`
-	TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
-	Name        string    `json:"name" bson:"name"`
-	ANumber		int       `json:"anumber" bson:"anumber"`	  
-}
-
-// GetID returns the unique identifer for this event
-func (e GenericPersistable) GetID() string {
-	return e.ID
-}
-
-// GetTimeCreated returns the unique identifer for this event
-func (e GenericPersistable) GetTimeCreated() time.Time {
-	return time.Now()
-}
-
-func (e *GenericPersistable) Decode(raw []byte) error {
-	if err := bson.Unmarshal(raw, e); err != nil {
-		return err
+	// GenericPersistable is created for each time a player is added to the GetMongoClearedCollection
+	type GenericPersistable struct {
+		ID          string    `json:"id" bson:"_id"`
+		TimeCreated time.Time `json:"timeCreated" bson:"timecreated"`
+		Name        string    `json:"name" bson:"name"`
+		ANumber		int       `json:"anumber" bson:"anumber"`	  
 	}
-	return nil
-}
 
-func (e GenericPersistable) ToJSON() []byte {
-	result, _ := json.Marshal(e)
-	return result
-}
+	// GetID returns the unique identifer for this event
+	func (e GenericPersistable) GetID() string {
+		return e.ID
+	}
+
+	// GetTimeCreated returns the unique identifer for this event
+	func (e GenericPersistable) GetTimeCreated() time.Time {
+		return time.Now()
+	}
+
+	// Decode required for interface
+	func (e *GenericPersistable) Decode(raw []byte) error {
+		if err := bson.Unmarshal(raw, e); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// ToJSON does what it sounds like
+	func (e GenericPersistable) ToJSON() []byte {
+		result, _ := json.Marshal(e)
+		return result
+	}
+
+// *** End Assets *** //
 
 // Runner for the test suite. Ensures that mongo can be reached at the default location or aborts the suite. The suite provides a
 // pre-connected session for its tests to use for setting the DB state via the SetupTest() call.
@@ -86,7 +90,7 @@ func (m *MongoSessionSuite) SetupTest() {
 }
 
 func (m *MongoSessionSuite) TestCtorDefaults() {
-	result, err := NewMongoSession("mongodb://testURL", "", nil)
+	result, err := NewMongoSession(TestMongoURL, "", nil)
 	m.NoError(err, "Test failed in creating MongoSession. Err: %s", err)
 	m.Equal(DefaultDbName, result.dbName, "DB name should be the default")
 	m.Equal(DefaultTimeout, result.timeoutSeconds, "Timeout value should default when not specified")
@@ -94,7 +98,7 @@ func (m *MongoSessionSuite) TestCtorDefaults() {
 }
 
 func (m *MongoSessionSuite) TestCtorNonDefaults() {
-	result, err := NewMongoSession("mongodb://testURL", "aDB", m.logger, 13)
+	result, err := NewMongoSession(TestMongoURL, "aDB", m.logger, 13)
 	m.NoError(err, "Test failed in creating MongoSession. Err: %s", err)
 	m.Equal("aDB", result.dbName, "DB name should be as passed")
 	m.Equal(time.Duration(13000000000), result.timeoutSeconds, "Timeout value should be as passed")
@@ -116,10 +120,8 @@ func (m *MongoSessionSuite) TestConnectToMongo() {
 	require.NoError(m.T(), err, "Sucessful connect throws no error. Instead we got %s", err)
 }
 
-func (m *MongoSessionSuite) TestConnectToMongoNoConnectionThrowsError() {
- 	testMS, err := NewMongoSession("mongodb://Bad.URL", TestDbName, m.logger, 3)
- 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
+func (m *MongoSessionSuite) TestConnectToMongoBadURLThrowsError() {
+ 	_, err := NewMongoSession("mongodb://Bad.URL", TestDbName, m.logger, 3)
 	require.Error(m.T(), err, "Should return an error when the mongo server can't be found")
 	require.Containsf(m.T(), err.Error(), "No DB found", "Looking for err message saying it can't find the server. Instead got %s", err)
 }
@@ -394,60 +396,60 @@ func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 
 /*** Helper functions ***/
 
-// MongoClearCollection drops the specified collection. Depends on constants for TestMongoURL and DbName.
-// Hardcodes 2 second timeout on connect, since it expects local mongo to work
-func MongoClearCollection(collName string) error {
-	to := 2 * time.Second
-	session, err := mgo.DialWithTimeout(TestMongoURL, to)
-	defer session.Close()
-	if err != nil {
+	// MongoClearCollection drops the specified collection. Depends on constants for TestMongoURL and DbName.
+	// Hardcodes 2 second timeout on connect, since it expects local mongo to work
+	func MongoClearCollection(collName string) error {
+		to := 2 * time.Second
+		session, err := mgo.DialWithTimeout(TestMongoURL, to)
+		defer session.Close()
+		if err != nil {
+			return err
+		}
+		myCollection := session.DB(TestDbName).C(collName)
+		_, err = myCollection.RemoveAll(nil)
 		return err
 	}
-	myCollection := session.DB(TestDbName).C(collName)
-	_, err = myCollection.RemoveAll(nil)
-	return err
-}
 
-// GetMongoClearedCollection clears the specified collection and returns an active session pointing to it
-func GetMongoClearedCollection(t *testing.T, collName string) (session *mgo.Session) {
-	var err error
-	session, err = mgo.Dial(TestMongoURL)
-	if err != nil {
-		t.Errorf("GetMongoClearedCollection failed to connect to Mongo")
+	// GetMongoClearedCollection clears the specified collection and returns an active session pointing to it
+	func GetMongoClearedCollection(t *testing.T, collName string) (session *mgo.Session) {
+		var err error
+		session, err = mgo.Dial(TestMongoURL)
+		if err != nil {
+			t.Errorf("GetMongoClearedCollection failed to connect to Mongo")
+		}
+		myCollection := session.DB(TestDbName).C(collName)
+		_, err = myCollection.RemoveAll(nil)
+		if err != nil {
+			t.Errorf("GetMongoClearedCollection failed to clear collection %s: %s", collName, err)
+		}
+		return session
 	}
-	myCollection := session.DB(TestDbName).C(collName)
-	_, err = myCollection.RemoveAll(nil)
-	if err != nil {
-		t.Errorf("GetMongoClearedCollection failed to clear collection %s: %s", collName, err)
+
+	func ClearMongoCollection(t *testing.T, session *mgo.Session, collName string) error {
+		var err error
+		clearMe := session.DB(TestDbName).C(collName)
+		_, err = clearMe.RemoveAll(nil)
+		if err != nil {
+			t.Errorf("ClearMongoCollection failed to clear collection %s: %s", collName, err)
+		}
+		return err
 	}
-	return session
-}
 
-func ClearMongoCollection(t *testing.T, session *mgo.Session, collName string) error {
-	var err error
-	clearMe := session.DB(TestDbName).C(collName)
-	_, err = clearMe.RemoveAll(nil)
-	if err != nil {
-		t.Errorf("ClearMongoCollection failed to clear collection %s: %s", collName, err)
+	func AddToMongoCollection(t *testing.T, session *mgo.Session, collName string, obj interface{}) error {
+		myCollection := session.DB(TestDbName).C(collName)
+		return myCollection.Insert(obj)
 	}
-	return err
-}
 
-func AddToMongoCollection(t *testing.T, session *mgo.Session, collName string, obj interface{}) error {
-	myCollection := session.DB(TestDbName).C(collName)
-	return myCollection.Insert(obj)
-}
-
-func GetMongoSessionWithLogger(t *testing.T) (ms *MongoSession, logBuf *bytes.Buffer) {
-	logBuf = &bytes.Buffer{}
-	logLabel := "persistence_test: "
-	blog := log.New(logBuf, logLabel, 0)
-	var err error
-	ms, err = NewMongoSession(TestMongoURL, TestDbName, blog, 3)
-	require.NoError(t, err, "Test failed in creating MongoSession. Err: %s", err)
-	err = ms.ConnectToMongo()
-	require.NoError(t, err, "Test failed in connecting MongoSession. Err: %s", err)
-	require.NotNil(t, ms, "Test failed in setting up session")
-	return
-}
+	func GetMongoSessionWithLogger(t *testing.T) (ms *MongoSession, logBuf *bytes.Buffer) {
+		logBuf = &bytes.Buffer{}
+		logLabel := "persistence_test: "
+		blog := log.New(logBuf, logLabel, 0)
+		var err error
+		ms, err = NewMongoSession(TestMongoURL, TestDbName, blog, 3)
+		require.NoError(t, err, "Test failed in creating MongoSession. Err: %s", err)
+		err = ms.ConnectToMongo()
+		require.NoError(t, err, "Test failed in connecting MongoSession. Err: %s", err)
+		require.NotNil(t, ms, "Test failed in setting up session")
+		return
+	}
 
