@@ -103,8 +103,6 @@ func (m *MongoSessionSuite) TestDeleteFromCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
-	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		err = AddToMongoCollection(t, m.session, TestCollection, testEvent)
@@ -178,8 +176,6 @@ func (m *MongoSessionSuite) TestFetchAllFromCollection() {
 	var testMS *MongoSession
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
-	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		results, fErr := testMS.FetchAllFromCollection(TestCollection)
@@ -214,8 +210,6 @@ func (m *MongoSessionSuite) TestFetchIDFromCollection() {
 	require.NoError(m.T(), err, "Test failed in setup adding to collection. Err: %s", err)
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
-	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		result := GenericPersistable{}
@@ -253,8 +247,6 @@ func (m *MongoSessionSuite) TestUpdateCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
-	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		err = AddToMongoCollection(t, m.session, TestCollection, testEvent)
@@ -315,8 +307,6 @@ func (m *MongoSessionSuite) TestWriteCollection() {
 	}
 	testMS, err = NewMongoSession(TestMongoURL, TestDbName, m.logger, 3)
 	require.NoError(m.T(), err, "Test failed in creating MongoSession. Err: %s", err)
-	err = testMS.ConnectToMongo()
-	require.NoError(m.T(), err, "Test failed in connecting MongoSession. Err: %s", err)
 
 	m.T().Run("Positive", func(t *testing.T) {
 		actual := GenericPersistable{}
