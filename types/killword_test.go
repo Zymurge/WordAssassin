@@ -2,12 +2,14 @@ package types
 
 import (
 	"testing"
+
 	"github.com/stretchr/testify/require"
 )
 
 func TestKillWord_positive(t *testing.T) {
 	d := "myDict"
 	w := "aValidWord"
+	require.True(t, len(w) >= KillWordMinCharLength, "Validate test value is at minimum length")
 	expectedID := d + "+" + w
 	actual, err := NewKillWord(d, w)
 	require.NoError(t, err, "Shouldn't throw on success")
@@ -20,17 +22,16 @@ func TestKillWord_positive(t *testing.T) {
 func TestKillWord_mimimum_length(t *testing.T) {
 	d := "myDict"
 	w := "no"
-	actual, err := NewKillWord(d, w)
+	require.True(t, len(w) < KillWordMinCharLength, "Validate test value is below minimum length")
+	_, err := NewKillWord(d, w)
 	require.Error(t, err, "Should throw an error")
-	require.Nil(t, actual, "Don't want a usable instance back")
-	require.Contains(t, "minimum", err.Error())
+	require.Contains(t, err.Error(), "minimum")
 }
 
 func TestKillWord_illegal_dict(t *testing.T) {
 	d := ""
 	w := "goodword"
-	actual, err := NewKillWord(d, w)
+	_, err := NewKillWord(d, w)
 	require.Error(t, err, "Should throw an error")
-	require.Nil(t, actual, "Don't want a usable instance back")
-	require.Contains(t, "dictionary", err.Error())
+	require.Contains(t, err.Error(), "not a valid KillDictionary")
 }

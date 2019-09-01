@@ -8,9 +8,9 @@ import (
 
 // KillDictionary represents a collection of valid words to use within a game of wordassassin
 type KillDictionary struct {
-	mongo		mongo.MongoAbstraction
-	ID			string
-	words 		[]string
+	mongo mongo.MongoAbstraction
+	ID    string
+	words []string
 }
 
 const (
@@ -21,10 +21,15 @@ const (
 // NewKillDictionary creates an unique instance
 // Unique ID enforced by persisted
 // Input list is scrubbed to allow valid values only (single word, more than 4 letters)
-func NewKillDictionary(m mongo.MongoAbstraction, id string, word ...string) KillDictionary {
-	dict := KillDictionary{ m, id, word }
+func NewKillDictionary(m mongo.MongoAbstraction, id string, words ...string) KillDictionary {
+	dict := KillDictionary{m, id, make([]string, 0)}
 	// TODO: validate each word and remove the bad ones
 	// TODO: write each word throough the AddWord method, to leverage scrubbing rules
+	for _, word := range words {
+		if err := dict.AddWord(word); err != nil {
+			// eat errors for now, since it only indicates an illegal word
+		}
+	}
 	return dict
 }
 
@@ -33,19 +38,18 @@ func NewKillDictionary(m mongo.MongoAbstraction, id string, word ...string) Kill
 // - Word must be 4 or more characters
 // Returns an error on unsuccessful addition
 func (kd *KillDictionary) AddWord(word string) error {
-	// validate word (length only so far)
-	if len(word) < MinCharLength {
-		return fmt.Errorf("AddWord: %s does not meet the minimum char length %d", word, MinCharLength)
-	}
-	// create a mongo friendly object to persist
+	// create a mongo friendly object to persist. Validate kw format as a side effect.
 	kw, err := NewKillWord(kd.ID, word)
 	if err != nil {
-		return err
+		return fmt.Errorf("AddWord: %v", err)
 	}
+
 	// attempt mongo write
 	if err = kd.mongo.WriteCollection(CollectionName, &kw); err != nil {
 		return err
 	}
+	// add to kd array
+	kd.words = append(kd.words, word)
 	// fallthrough success
 	return nil
 }

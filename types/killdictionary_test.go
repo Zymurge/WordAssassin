@@ -3,6 +3,7 @@ package types
 import (
 	"reflect"
 	"testing"
+
 	"github.com/stretchr/testify/require"
 
 	dao "wordassassin/persistence"
@@ -55,25 +56,25 @@ func TestKillDictionary_AddWord(t *testing.T) {
 		word string
 	}
 	tests := []struct {
-		name string
-		args args
-		err  bool
-		msg  string
-		mongoCtrl dao.MongoControls 	// default mock controls
+		name      string
+		args      args
+		err       bool
+		msg       string
+		mongoCtrl dao.MongoControls // default mock controls
 	}{
-		{ name: "Positive",
-			args: args{ word: "good-word", },
-			err: false,
+		{name: "Positive",
+			args: args{word: "good-word"},
+			err:  false,
 		},
-		{ name: "Short word",
-			args: args{ word: "xx", },
-			err: true,
-			msg: "minimum",
+		{name: "Short word",
+			args: args{word: "xx"},
+			err:  true,
+			msg:  "minimum",
 		},
-		{ name: "Duplicate",
-			args: args{ word: "pre-existing", },
-			err: true,
-			msg: "duplicate",
+		{name: "Duplicate",
+			args: args{word: "pre-existing"},
+			err:  true,
+			msg:  "duplicate",
 			mongoCtrl: dao.MongoControls{
 				ConnectMode: "positive",
 				WriteMode:   "duplicate",
@@ -84,7 +85,7 @@ func TestKillDictionary_AddWord(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockMongo.SetMongoControlsFromArgs(tt.mongoCtrl)
-			got := target.AddWord(tt.args.word); 
+			got := target.AddWord(tt.args.word)
 			if tt.err {
 				require.NotNil(t, got, "Expected error, didn't get one")
 				require.Contains(t, got.Error(), tt.msg, "Err msg did not contain required keyword")
