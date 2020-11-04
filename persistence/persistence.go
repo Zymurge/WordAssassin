@@ -10,7 +10,7 @@ import (
 
 	mongo "go.mongodb.org/mongo-driver/mongo"
 	bson "go.mongodb.org/mongo-driver/bson"
-	conn "go.mongodb.org/mongo-driver/x/network/connstring"
+	conn "go.mongodb.org/mongo-driver/x/mongo/driver/connstring"
 	options "go.mongodb.org/mongo-driver/mongo/options"
 )
 
